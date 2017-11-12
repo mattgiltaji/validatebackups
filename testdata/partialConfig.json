@@ -1,6 +1,11 @@
 {
   "google_auth_file_location": "over-here",
-  "buckets": [
-    {"name": "bucket-a"}
+  "server_backup_rules": {
+    "oldest_file_max_age_in_days": 10,
+    "newest_file_max_age_in_days": 2
+  },
+  "buckets": [{
+    "name": "bucket-a"
+  }
   ]
 }

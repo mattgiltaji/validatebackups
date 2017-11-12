@@ -15,6 +15,16 @@ var testFileConfigCases = []struct {
 	{"fullConfig.json", Config{
 		GoogleAuthFileLocation: "over-there",
 		FileDownloadLocation:   "where-should-the-files-go",
+		ServerBackupRules: ServerFileValidationRules{
+			OldestFileMaxAgeInDays: 32,
+			NewestFileMaxAgeInDays: 17,
+		},
+		FilesToDownload: FileDownloadRules{
+			ServerBackups:        1,
+			EpisodesFromEachShow: 2,
+			PhotosFromThisMonth:  3,
+			PhotosFromEachYear:   4,
+		},
 		Buckets: []BucketToProcess{
 			{Name: "bucket-one"},
 			{Name: "bucket-two"},
@@ -22,6 +32,10 @@ var testFileConfigCases = []struct {
 		}},
 	}, {"partialConfig.json", Config{
 		GoogleAuthFileLocation: "over-here",
+		ServerBackupRules: ServerFileValidationRules{
+			OldestFileMaxAgeInDays: 10,
+			NewestFileMaxAgeInDays: 2,
+		},
 		Buckets: []BucketToProcess{
 			{Name: "bucket-a"},
 		}},
@@ -44,6 +58,8 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 		is.Nil(err)
 		is.Equal(expected.GoogleAuthFileLocation, actual.GoogleAuthFileLocation)
 		is.Equal(expected.FileDownloadLocation, actual.FileDownloadLocation)
+		is.Equal(expected.FilesToDownload, actual.FilesToDownload)
+		is.Equal(expected.ServerBackupRules, actual.ServerBackupRules)
 		is.Equal(expected.Buckets, actual.Buckets)
 	}
 
