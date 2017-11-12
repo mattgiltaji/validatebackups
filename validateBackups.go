@@ -2,8 +2,9 @@ package validatebackups
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
+
+	"github.com/juju/errors"
 )
 
 func main() {
@@ -13,14 +14,14 @@ func main() {
 	//loop over relevant buckets
 }
 
-func loadConfigurationFromFile(filePath string) Config {
-	var config Config
+func loadConfigurationFromFile(filePath string) (config Config, err error) {
 	configFile, err := os.Open(filePath)
 	defer configFile.Close()
 	if err != nil {
-		fmt.Println(err.Error())
+		err = errors.Annotatef(err, "Unable to open config file at %s", filePath)
+		return
 	}
 	jsonParser := json.NewDecoder(configFile)
 	jsonParser.Decode(&config)
-	return config
+	return
 }

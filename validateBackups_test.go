@@ -40,9 +40,13 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 
 	for _, tc := range testFileConfigCases {
 		expected := tc.expected
-		actual := loadConfigurationFromFile(filepath.Join(testDataDir, tc.filename))
+		actual, err := loadConfigurationFromFile(filepath.Join(testDataDir, tc.filename))
+		is.Nil(err)
 		is.Equal(expected.GoogleAuthFileLocation, actual.GoogleAuthFileLocation)
 		is.Equal(expected.FileDownloadLocation, actual.FileDownloadLocation)
 		is.Equal(expected.Buckets, actual.Buckets)
 	}
+
+	_, err = loadConfigurationFromFile(filepath.Join(testDataDir, "doesNotExist.json"))
+	is.Error(err, "Should error out when reading config from a file that doesn't exist.")
 }
