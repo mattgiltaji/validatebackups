@@ -1,0 +1,9 @@
+{
+  "google_auth_file_location": "over-there",
+  "file_download_location": "where-should-the-files-go",
+  "buckets": [
+    {"name": "bucket-one"},
+    {"name": "bucket-two"},
+    {"name": "bucket-three"}
+  ]
+}
