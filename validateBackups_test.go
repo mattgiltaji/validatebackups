@@ -12,6 +12,7 @@ var testFileConfigCases = []struct {
 	filename string
 	expected Config
 }{
+	//we should be able to handle every value being filled
 	{"fullConfig.json", Config{
 		GoogleAuthFileLocation: "over-there",
 		FileDownloadLocation:   "where-should-the-files-go",
@@ -30,7 +31,29 @@ var testFileConfigCases = []struct {
 			{Name: "bucket-two"},
 			{Name: "bucket-three"},
 		}},
-	}, {"partialConfig.json", Config{
+	},
+	//handle values added in any order in the config file
+	{"differentOrderConfig.json", Config{
+		GoogleAuthFileLocation: "over-there",
+		FileDownloadLocation:   "where-should-the-files-go",
+		ServerBackupRules: ServerFileValidationRules{
+			OldestFileMaxAgeInDays: 32,
+			NewestFileMaxAgeInDays: 17,
+		},
+		FilesToDownload: FileDownloadRules{
+			ServerBackups:        1,
+			EpisodesFromEachShow: 2,
+			PhotosFromThisMonth:  3,
+			PhotosFromEachYear:   4,
+		},
+		Buckets: []BucketToProcess{
+			{Name: "bucket-one"},
+			{Name: "bucket-two"},
+			{Name: "bucket-three"},
+		}},
+	},
+	//handle if some values are missing in the config file
+	{"partialConfig.json", Config{
 		GoogleAuthFileLocation: "over-here",
 		ServerBackupRules: ServerFileValidationRules{
 			OldestFileMaxAgeInDays: 10,
@@ -39,7 +62,9 @@ var testFileConfigCases = []struct {
 		Buckets: []BucketToProcess{
 			{Name: "bucket-a"},
 		}},
-	}, {"emptyConfig.json", Config{}},
+	},
+	//handle an entirely empty config file
+	{"emptyConfig.json", Config{}},
 }
 
 func TestLoadConfigurationFromFile(t *testing.T) {

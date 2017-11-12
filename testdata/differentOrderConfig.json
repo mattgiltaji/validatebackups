@@ -1,0 +1,22 @@
+{
+  "google_auth_file_location": "over-there",
+  "files_to_download": {
+    "server_backups": 1,
+    "photos_from_each_year": 4,
+    "photos_from_this_month": 3,
+    "episodes_from_each_show": 2
+  },
+  "server_backup_rules": {
+    "newest_file_max_age_in_days": 17,
+    "oldest_file_max_age_in_days": 32
+  },
+  "buckets": [{
+    "name": "bucket-one"
+  }, {
+    "name": "bucket-two"
+  }, {
+    "name": "bucket-three"
+  }
+  ],
+  "file_download_location": "where-should-the-files-go"
+}
