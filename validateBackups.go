@@ -22,6 +22,6 @@ func loadConfigurationFromFile(filePath string) (config Config, err error) {
 		return
 	}
 	jsonParser := json.NewDecoder(configFile)
-	jsonParser.Decode(&config)
+	err = jsonParser.Decode(&config)
 	return
 }

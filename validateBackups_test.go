@@ -49,4 +49,7 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 
 	_, err = loadConfigurationFromFile(filepath.Join(testDataDir, "doesNotExist.json"))
 	is.Error(err, "Should error out when reading config from a file that doesn't exist.")
+
+	_, err = loadConfigurationFromFile(filepath.Join(testDataDir, "parseErrorConfig.json"))
+	is.Error(err, "Should error out if the config file cannot be parsed.")
 }
