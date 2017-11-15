@@ -5,7 +5,8 @@
     "newest_file_max_age_in_days": 2
   },
   "buckets": [{
-    "name": "bucket-a"
+    "name": "bucket-a",
+    "type": "photo"
   }
   ]
 }

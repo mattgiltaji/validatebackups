@@ -12,11 +12,14 @@
     "photos_from_each_year": 4
   },
   "buckets": [{
-    "name": "bucket-one"
+    "name": "bucket-one",
+    "type": "media"
   }, {
-    "name": "bucket-two"
+    "name": "bucket-two",
+    "type": "photo"
   }, {
-    "name": "bucket-three"
+    "name": "bucket-three",
+    "type": "server-backup"
   }
   ]
 }

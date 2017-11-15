@@ -11,11 +11,14 @@
     "oldest_file_max_age_in_days": 32
   },
   "buckets": [{
-    "name": "bucket-one"
+    "name": "bucket-one",
+    "type": "media"
   }, {
-    "name": "bucket-two"
+    "name": "bucket-two",
+    "type": "photo"
   }, {
-    "name": "bucket-three"
+    "name": "bucket-three",
+    "type": "server-backup"
   }
   ],
   "file_download_location": "where-should-the-files-go"

@@ -1,12 +1,4 @@
-package validatebackups
-
-import (
-	"cloud.google.com/go/storage"
-)
-
-type Validator struct {
-	Client storage.Client
-}
+package main
 
 type Config struct {
 	GoogleAuthFileLocation string                    `json:"google_auth_file_location"`
@@ -18,6 +10,7 @@ type Config struct {
 
 type BucketToProcess struct {
 	Name string `json:"name"`
+	Type string `json:"type"`
 }
 
 type ServerFileValidationRules struct {

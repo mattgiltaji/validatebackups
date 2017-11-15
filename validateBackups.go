@@ -1,9 +1,11 @@
-package validatebackups
+package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 
+	"cloud.google.com/go/storage"
 	"github.com/juju/errors"
 )
 
@@ -16,5 +18,9 @@ func loadConfigurationFromFile(filePath string) (config Config, err error) {
 	}
 	jsonParser := json.NewDecoder(configFile)
 	err = jsonParser.Decode(&config)
+	return
+}
+
+func validateBucket(bucket *storage.BucketHandle, ctx context.Context, config Config) (err error) {
 	return
 }

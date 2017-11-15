@@ -1,4 +1,4 @@
-package validatebackups
+package main
 
 import (
 	"os"
@@ -27,9 +27,9 @@ var testFileConfigCases = []struct {
 			PhotosFromEachYear:   4,
 		},
 		Buckets: []BucketToProcess{
-			{Name: "bucket-one"},
-			{Name: "bucket-two"},
-			{Name: "bucket-three"},
+			{Name: "bucket-one", Type: "media"},
+			{Name: "bucket-two", Type: "photo"},
+			{Name: "bucket-three", Type: "server-backup"},
 		}},
 	},
 	//handle values added in any order in the config file
@@ -47,9 +47,9 @@ var testFileConfigCases = []struct {
 			PhotosFromEachYear:   4,
 		},
 		Buckets: []BucketToProcess{
-			{Name: "bucket-one"},
-			{Name: "bucket-two"},
-			{Name: "bucket-three"},
+			{Name: "bucket-one", Type: "media"},
+			{Name: "bucket-two", Type: "photo"},
+			{Name: "bucket-three", Type: "server-backup"},
 		}},
 	},
 	//handle if some values are missing in the config file
@@ -60,7 +60,7 @@ var testFileConfigCases = []struct {
 			NewestFileMaxAgeInDays: 2,
 		},
 		Buckets: []BucketToProcess{
-			{Name: "bucket-a"},
+			{Name: "bucket-a", Type: "photo"},
 		}},
 	},
 	//handle an entirely empty config file
