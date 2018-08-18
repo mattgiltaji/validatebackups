@@ -127,7 +127,17 @@ func TestGetBucketTopLevelDirs(t *testing.T) {
 		expected := tc.expected
 		bucket := testClient.Bucket(tc.bucketName)
 		actual, err := getBucketTopLevelDirs(bucket, ctx)
-		is.NoError(err, "Shouldnot error out when reading from a populated test bucket")
+		is.NoError(err, "Should not error out when reading from a populated test bucket")
 		is.Equal(expected, actual)
 	}
+
+	emptyBucket := testClient.Bucket("test-matt-empty")
+	actual, err := getBucketTopLevelDirs(emptyBucket, ctx)
+	is.Empty(actual, "SHould not find any dirs in an empy bucket")
+	is.NoError(err, "Should not error out when reading from an empty bucket")
+
+	badBucket := testClient.Bucket("does-not-exist")
+	_, err = getBucketTopLevelDirs(badBucket, ctx)
+	is.Error(err, "Should error out when reading from a non existant bucket")
+
 }
