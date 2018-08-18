@@ -32,8 +32,13 @@ func main() {
 		//validate the bucket, if the type merits it
 		err = validateBucket(bucket, ctx, config)
 		logFatalIfErr(err, fmt.Sprintf("Bucket %s failed validation.", bucketConfig.Name))
+		var dirs []string
+		dirs, err = getBucketTopLevelDirs(bucket, ctx)
+		logFatalIfErr(err, fmt.Sprintf("Couldn't get dirs in bucket %s.", bucketConfig.Name))
 
+		fmt.Printf("Bucket %s has dirs %v", bucketConfig.Name, dirs)
 		//get the list of objects we'll download later and save it to a file
+
 	}
 	//now go over the file contents and download the objects locally
 	//ideally give some progress indicator : downloading X/Y files for bucket X

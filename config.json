@@ -1,0 +1,25 @@
+{
+  "google_auth_file_location": "D:\\Matt\\Documents\\google cloud storage\\backup-validator-auth.json",
+  "file_download_location": "D:\\temp\\validate_backups",
+  "server_backup_rules": {
+    "oldest_file_max_age_in_days": 60,
+    "newest_file_max_age_in_days": 7
+  },
+  "files_to_download": {
+    "server_backups": 4,
+    "episodes_from_each_show": 3,
+    "photos_from_this_month": 5,
+    "photos_from_each_year": 10
+  },
+  "buckets": [{
+    "name": "giltaji-media",
+    "type": "media"
+  }, {
+    "name": "giltaji-photos",
+    "type": "photo"
+  }, {
+    "name": "matt-server-backups",
+    "type": "server-backup"
+  }
+  ]
+}

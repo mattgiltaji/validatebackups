@@ -1,12 +1,26 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/api/option"
 )
+
+//
+func getTestClient(t *testing.T, ctx context.Context) (client *storage.Client) {
+	var err error
+	googleAuthFileLocation := "D:\\Matt\\Documents\\google cloud storage\\test-backup-validator-auth.json"
+	client, err = storage.NewClient(ctx, option.WithCredentialsFile(googleAuthFileLocation))
+	if err != nil {
+		t.Error("Could not connect to test storage instance")
+	}
+	return
+}
 
 var testFileConfigCases = []struct {
 	filename string
@@ -93,4 +107,27 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 
 	_, err = loadConfigurationFromFile(filepath.Join(testDataDir, "parseErrorConfig.json"))
 	is.Error(err, "Should error out if the config file cannot be parsed.")
+}
+
+var testBucketTopLevelDirsCases = []struct {
+	bucketName string
+	expected   []string
+}{
+	{"test-matt-media", []string{"show 1/", "show 2/", "show 3/"}},
+}
+
+func TestGetBucketTopLevelDirs(t *testing.T) {
+
+	is := assert.New(t)
+	ctx := context.Background()
+	// set up a test project with a readonly service account that can be committed
+	testClient := getTestClient(t, ctx)
+
+	for _, tc := range testBucketTopLevelDirsCases {
+		expected := tc.expected
+		bucket := testClient.Bucket(tc.bucketName)
+		actual, err := getBucketTopLevelDirs(bucket, ctx)
+		is.NoError(err, "Shouldnot error out when reading from a populated test bucket")
+		is.Equal(expected, actual)
+	}
 }
