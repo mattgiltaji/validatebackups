@@ -14,7 +14,12 @@ import (
 //
 func getTestClient(t *testing.T, ctx context.Context) (client *storage.Client) {
 	var err error
-	googleAuthFileLocation := "D:\\Matt\\Documents\\google cloud storage\\test-backup-validator-auth.json"
+	googleAuthFileName := "test-backup-validator-auth.json"
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Error("Could not determine current directory to load test auth file")
+	}
+	googleAuthFileLocation := filepath.Join(workingDir, googleAuthFileName)
 	client, err = storage.NewClient(ctx, option.WithCredentialsFile(googleAuthFileLocation))
 	if err != nil {
 		t.Error("Could not connect to test storage instance")
