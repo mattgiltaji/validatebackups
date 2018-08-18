@@ -7,9 +7,8 @@ environment:
     secure: YdUmnIWk1uCQalq497dt8DbeU7RZnlJ1sn3Zl0+wCUI=
 install:
 - ps: iex ((New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/appveyor/secure-file/master/install.ps1'))
-- cmd: appveyor-tools\secure-file -decrypt c:\gopath\src\github.com\mattgiltaji\validatebackups\test-backup-validator-auth.json.appenc -secret %secret_key%
-- sh: ./appveyor-tools/secure-file -decrypt path-to/encrypted-filename.ext.enc -secret $secret_key
 - cmd: >-
+    appveyor-tools\secure-file -decrypt c:\gopath\src\github.com\mattgiltaji\validatebackups\test-backup-validator-auth.json.appenc -secret %secret_key% -out c:\gopath\src\github.com\mattgiltaji\validatebackups\test-backup-validator-auth.json
     echo %PATH%
 
     echo %GOPATH%
