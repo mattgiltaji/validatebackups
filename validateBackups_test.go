@@ -114,6 +114,33 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 	is.Error(err, "Should error out if the config file cannot be parsed.")
 }
 
+var testGetBucketValidationTypeFromNameAndConfigCases = []struct {
+	name     string
+	expected string
+}{
+	{"bucket-one", "media"},
+	{"bucket-two", "photo"},
+	{"bucket-three", "server-backup"},
+}
+
+func TestGetBucketValidationTypeFromNameAndConfig(t *testing.T) {
+	is := assert.New(t)
+	configs := []BucketToProcess{
+		{Name: "bucket-one", Type: "media"},
+		{Name: "bucket-two", Type: "photo"},
+		{Name: "bucket-three", Type: "server-backup"},
+	}
+	for _, tc := range testGetBucketValidationTypeFromNameAndConfigCases {
+		expected := tc.expected
+		actual, err := getBucketValidationTypeFromNameAndConfig(tc.name, configs)
+		is.NoError(err)
+		is.Equal(expected, actual)
+	}
+	_, err := getBucketValidationTypeFromNameAndConfig("name-does-not-exist", configs)
+	is.Error(err, "Should error when unable to find matching config")
+
+}
+
 var testBucketTopLevelDirsCases = []struct {
 	bucketName string
 	expected   []string
@@ -132,17 +159,17 @@ func TestGetBucketTopLevelDirs(t *testing.T) {
 		expected := tc.expected
 		bucket := testClient.Bucket(tc.bucketName)
 		actual, err := getBucketTopLevelDirs(bucket, ctx)
-		is.NoError(err, "Should not error out when reading from a populated test bucket")
+		is.NoError(err, "Should not error when reading from a populated test bucket")
 		is.Equal(expected, actual)
 	}
 
 	emptyBucket := testClient.Bucket("test-matt-empty")
 	actual, err := getBucketTopLevelDirs(emptyBucket, ctx)
 	is.Empty(actual, "Should not find any dirs in an empty bucket")
-	is.NoError(err, "Should not error out when reading from an empty bucket")
+	is.NoError(err, "Should not error when reading from an empty bucket")
 
 	badBucket := testClient.Bucket("does-not-exist")
 	_, err = getBucketTopLevelDirs(badBucket, ctx)
-	is.Error(err, "Should error out when reading from a non existent bucket")
+	is.Error(err, "Should error when reading from a non existent bucket")
 
 }
