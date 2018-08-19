@@ -49,8 +49,8 @@ func TestValidateBucket(t *testing.T) {
 	backupBucketName := "test-matt-server-backups"
 	config.Buckets = append(config.Buckets, BucketToProcess{Name: backupBucketName, Type: "server-backup"})
 	backupBucket := testClient.Bucket(backupBucketName)
-	validateBucket(backupBucket, ctx, config)
-	//is.Error(err, "Should error when validating a bucket type with validations that fail")
+	backupErr := validateBucket(backupBucket, ctx, config)
+	is.Error(backupErr, "Should error when validating a bucket type with validations that fail")
 
 	missingBucketName := "does-not-exist"
 	missingBucket := testClient.Bucket(missingBucketName)

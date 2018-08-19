@@ -91,5 +91,5 @@ func getBucketTopLevelDirs(bucket *storage.BucketHandle, ctx context.Context) (d
 }
 
 func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, rules ServerFileValidationRules) (err error) {
-	return
+	return errors.New("Not implemented yet")
 }
