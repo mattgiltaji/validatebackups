@@ -138,7 +138,7 @@ func TestGetBucketTopLevelDirs(t *testing.T) {
 
 	emptyBucket := testClient.Bucket("test-matt-empty")
 	actual, err := getBucketTopLevelDirs(emptyBucket, ctx)
-	is.Empty(actual, "SHould not find any dirs in an empy bucket")
+	is.Empty(actual, "Should not find any dirs in an empy bucket")
 	is.NoError(err, "Should not error out when reading from an empty bucket")
 
 	badBucket := testClient.Bucket("does-not-exist")
