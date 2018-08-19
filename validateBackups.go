@@ -30,8 +30,19 @@ func validateBucket(bucket *storage.BucketHandle, ctx context.Context, config Co
 		err = errors.Annotate(err, "Unable to determine bucket name when validating.")
 		return
 	}
-	_, err = getBucketValidationTypeFromNameAndConfig(bucketName, config.Buckets)
-
+	validationType, err := getBucketValidationTypeFromNameAndConfig(bucketName, config.Buckets)
+	switch validationType {
+	case "media": //no validations for this type
+	case "photo": //no validations for this type
+	case "server-backup":
+		err = validateServerBackups(bucket, ctx, config.ServerBackupRules)
+		if err != nil {
+			err = errors.Annotatef(err, "Error validating bucket %s as type %s", bucketName, validationType)
+			return
+		}
+	default:
+		err = errors.New(fmt.Sprintf("No matching validation logic for bucket %s with validation type %s", bucketName, validationType))
+	}
 	return
 }
 
@@ -70,10 +81,15 @@ func getBucketTopLevelDirs(bucket *storage.BucketHandle, ctx context.Context) (d
 			break
 		}
 		if err2 != nil {
+			//not sure how to test this branch, is it even reachable?
 			err = errors.Annotatef(err2, "Unable to get top level dirs of bucket %s", bucketName)
 			return
 		}
 		dirs = append(dirs, objAttrs.Prefix)
 	}
+	return
+}
+
+func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, rules ServerFileValidationRules) (err error) {
 	return
 }

@@ -11,7 +11,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-//
 func getTestClient(t *testing.T, ctx context.Context) (client *storage.Client) {
 	var err error
 	googleAuthFileName := "test-backup-validator-auth.json"
@@ -25,6 +24,45 @@ func getTestClient(t *testing.T, ctx context.Context) (client *storage.Client) {
 		t.Error("Could not connect to test storage instance")
 	}
 	return
+}
+
+func TestValidateBucket(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+
+	config := Config{
+		ServerBackupRules: ServerFileValidationRules{
+			OldestFileMaxAgeInDays: 32,
+			NewestFileMaxAgeInDays: 17,
+		},
+		Buckets: []BucketToProcess{
+			{Name: "test-matt-media", Type: "media"},
+			{Name: "test-matt-photos", Type: "photo"},
+		}}
+
+	for _, tb := range config.Buckets {
+		bucket := testClient.Bucket(tb.Name)
+		err := validateBucket(bucket, ctx, config)
+		is.NoError(err, "Should not error when validating a bucket type that doesn't do any validations")
+	}
+	backupBucketName := "test-matt-server-backups"
+	config.Buckets = append(config.Buckets, BucketToProcess{Name: backupBucketName, Type: "server-backup"})
+	backupBucket := testClient.Bucket(backupBucketName)
+	validateBucket(backupBucket, ctx, config)
+	//is.Error(err, "Should error when validating a bucket type with validations that fail")
+
+	missingBucketName := "does-not-exist"
+	missingBucket := testClient.Bucket(missingBucketName)
+	missingBucketErr := validateBucket(missingBucket, ctx, config)
+	is.Error(missingBucketErr, "Should error when validating a bucket that doesn't exist")
+
+	missingValidationTypeBucketName := "test-matt-empty"
+	config.Buckets = append(config.Buckets, BucketToProcess{Name: missingValidationTypeBucketName, Type: "empty"})
+	missingValidationTypeBucket := testClient.Bucket(missingValidationTypeBucketName)
+	missingValidationTypeErr := validateBucket(missingValidationTypeBucket, ctx, config)
+	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching validation logic")
+
 }
 
 var testFileConfigCases = []struct {
@@ -152,7 +190,6 @@ func TestGetBucketTopLevelDirs(t *testing.T) {
 
 	is := assert.New(t)
 	ctx := context.Background()
-	// set up a test project with a readonly service account that can be committed
 	testClient := getTestClient(t, ctx)
 
 	for _, tc := range testBucketTopLevelDirsCases {
