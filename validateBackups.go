@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/juju/errors"
@@ -122,8 +123,25 @@ func getOldestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context
 }
 
 func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, rules ServerFileValidationRules) (err error) {
-	//check oldest file is in proper range
-	//check newest file is in proper range
+
+	oldestObjAttrs, err := getOldestObjectFromBucket(bucket, ctx)
+	if err != nil || oldestObjAttrs == nil {
+		return errors.Annotate(err, "Unable to get oldest object in bucket")
+	}
+	oldestFileMaxValidTimestamp := time.Now().AddDate(0, 0, rules.OldestFileMaxAgeInDays)
+	if oldestObjAttrs.Created.Before(oldestFileMaxValidTimestamp) {
+		return errors.New(fmt.Sprintf("Oldest file %s was created on %v, too long in the past. Check backup file archiving.", oldestObjAttrs.Name, oldestObjAttrs.Created))
+	}
+
+	newestObjAttrs, err := getNewestObjectFromBucket(bucket, ctx)
+	if err != nil || newestObjAttrs == nil {
+		return errors.Annotate(err, "Unable to get newest object in bucket")
+	}
+	newestFileMaxValidTimestamp := time.Now().AddDate(0, 0, rules.NewestFileMaxAgeInDays)
+	if newestObjAttrs.Created.Before(newestFileMaxValidTimestamp) {
+		return errors.New(fmt.Sprintf("Newest file %s was created on %v, too long in the past. Make sure backups are running", newestObjAttrs.Name, newestObjAttrs.Created))
+	}
+
 	//TODO: should this return a bool up the chain instead of an err?
-	return errors.New("Not implemented yet")
+	return nil
 }

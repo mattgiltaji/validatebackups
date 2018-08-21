@@ -248,3 +248,32 @@ func TestGetOldestObjectFromBucket(t *testing.T) {
 	_, err = getOldestObjectFromBucket(badBucket, ctx)
 	is.Error(err, "Should error when reading from a non existent bucket")
 }
+
+var testValidateServerBackupsCases = []struct {
+	bucketName string
+}{
+	{"test-matt-server-backups"}, {"test-matt-server-backups-old"},
+	//{"test-matt-empty"},
+	{"does-not-exist"},
+}
+
+func TestValidateServerBackups(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+	rules := ServerFileValidationRules{
+		OldestFileMaxAgeInDays: 32,
+		NewestFileMaxAgeInDays: 17,
+	}
+
+	for _, tc := range testValidateServerBackupsCases {
+		bucket := testClient.Bucket(tc.bucketName)
+		err := validateServerBackups(bucket, ctx, rules)
+		is.Error(err, "Should error when server backup validations fail")
+	}
+
+	//TODO: happy path  test case: upload file as part of prep (maybe check if any files uploaded in the last day to save transfer costs?) so it passes everything
+	//TODO: figure out why empty bucket is passing
+	//TODO: not new enough test case: upload fresh file in prep, change rules.NewestFileMaxAgeInDays to 0 to make sure it fails
+	//TODO: somehow make checking oldest file pass but fail on figuring out the newest file... how is this branch testable?
+}
