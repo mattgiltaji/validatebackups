@@ -66,12 +66,6 @@ func getBucketValidationTypeFromNameAndConfig(name string, configs []BucketToPro
 }
 
 func getBucketTopLevelDirs(bucket *storage.BucketHandle, ctx context.Context) (dirs []string, err error) {
-	bucketName, err := getBucketName(bucket, ctx)
-	if err != nil {
-		err = errors.Annotate(err, "Unable to determine bucket name when getting top level dirs.")
-		return
-	}
-
 	topLevelDirQuery := storage.Query{Delimiter: "/", Versions: false}
 	it := bucket.Objects(ctx, &topLevelDirQuery)
 	for {
@@ -81,8 +75,7 @@ func getBucketTopLevelDirs(bucket *storage.BucketHandle, ctx context.Context) (d
 			break
 		}
 		if err2 != nil {
-			//not sure how to test this branch, is it even reachable?
-			err = errors.Annotatef(err2, "Unable to get top level dirs of bucket %s", bucketName)
+			err = errors.Annotate(err2, "Unable to get top level dirs of bucket")
 			return
 		}
 		dirs = append(dirs, objAttrs.Prefix)
@@ -90,6 +83,29 @@ func getBucketTopLevelDirs(bucket *storage.BucketHandle, ctx context.Context) (d
 	return
 }
 
+func getNewestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context) (newestObjectAttrs *storage.ObjectAttrs, err error) {
+	it := bucket.Objects(ctx, nil)
+	for {
+		//TODO: use ctx to cancel this mid-process if requested?
+		objAttrs, err2 := it.Next()
+		if err2 == iterator.Done {
+			break
+		}
+		if err2 != nil {
+			err = errors.Annotate(err2, "Unable to get newest object from bucket")
+			return
+		}
+		if newestObjectAttrs == nil || newestObjectAttrs.Created.Before(objAttrs.Created) {
+			newestObjectAttrs = objAttrs
+		}
+	}
+	return
+}
+
+
 func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, rules ServerFileValidationRules) (err error) {
+	//check oldest file is in proper range
+	//check newest file is in proper range
+	//TODO: should this return a bool up the chain instead of an err?
 	return errors.New("Not implemented yet")
 }

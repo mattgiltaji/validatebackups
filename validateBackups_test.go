@@ -210,3 +210,22 @@ func TestGetBucketTopLevelDirs(t *testing.T) {
 	is.Error(err, "Should error when reading from a non existent bucket")
 
 }
+
+func TestGetNewestObjectFromBucket(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+	bucket := testClient.Bucket("test-matt-server-backups")
+	actual, err := getNewestObjectFromBucket(bucket, ctx)
+	is.NoError(err, "Should not error when getting latest object from bucket")
+	is.Equal("newest.txt", actual.Name)
+
+	emptyBucket := testClient.Bucket("test-matt-empty")
+	actualEmpty, err := getNewestObjectFromBucket(emptyBucket, ctx)
+	is.Nil(actualEmpty, "Should not find any dirs in an empty bucket")
+	is.NoError(err, "Should not error when reading from an empty bucket")
+
+	badBucket := testClient.Bucket("does-not-exist")
+	_, err = getNewestObjectFromBucket(badBucket, ctx)
+	is.Error(err, "Should error when reading from a non existent bucket")
+}
