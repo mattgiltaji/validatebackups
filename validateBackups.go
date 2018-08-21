@@ -102,6 +102,24 @@ func getNewestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context
 	return
 }
 
+func getOldestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context) (oldestObjectAttrs *storage.ObjectAttrs, err error) {
+	it := bucket.Objects(ctx, nil)
+	for {
+		//TODO: use ctx to cancel this mid-process if requested?
+		objAttrs, err2 := it.Next()
+		if err2 == iterator.Done {
+			break
+		}
+		if err2 != nil {
+			err = errors.Annotate(err2, "Unable to get oldest object from bucket")
+			return
+		}
+		if oldestObjectAttrs == nil || oldestObjectAttrs.Created.After(objAttrs.Created) {
+			oldestObjectAttrs = objAttrs
+		}
+	}
+	return
+}
 
 func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, rules ServerFileValidationRules) (err error) {
 	//check oldest file is in proper range
