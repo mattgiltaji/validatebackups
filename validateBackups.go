@@ -96,7 +96,7 @@ func getNewestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context
 			err = errors.Annotate(err2, "Unable to get newest object from bucket")
 			return
 		}
-		if newestObjectAttrs == nil || newestObjectAttrs.Created.Before(objAttrs.Created) {
+		if newestObjectAttrs == nil || objAttrs.Created.After(newestObjectAttrs.Created) {
 			newestObjectAttrs = objAttrs
 		}
 	}
@@ -115,7 +115,7 @@ func getOldestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context
 			err = errors.Annotate(err2, "Unable to get oldest object from bucket")
 			return
 		}
-		if oldestObjectAttrs == nil || oldestObjectAttrs.Created.After(objAttrs.Created) {
+		if oldestObjectAttrs == nil || objAttrs.Created.Before(oldestObjectAttrs.Created) {
 			oldestObjectAttrs = objAttrs
 		}
 	}
