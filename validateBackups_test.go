@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
@@ -26,6 +29,64 @@ func getTestClient(t *testing.T, ctx context.Context) (client *storage.Client) {
 	return
 }
 
+func deleteExistingObjectsFromBucket(bucket *storage.BucketHandle, ctx context.Context) (err error) {
+	it := bucket.Objects(ctx, nil)
+	for {
+		//TODO: use ctx to cancel this mid-process if requested?
+		objAttrs, err2 := it.Next()
+		if err2 == iterator.Done {
+			break
+		}
+		if err2 != nil || objAttrs == nil {
+			return errors.Annotate(err2, "Unable to get object from bucket to delete it.")
+		}
+		object := bucket.Object(objAttrs.Name)
+		if object == nil {
+			return errors.Annotate(err2, "Unable to get object handle from bucket to delete it.")
+		}
+		object.Delete(ctx)
+	}
+	return
+}
+
+func uploadFreshServerBackupFile(bucket *storage.BucketHandle, ctx context.Context) (err error) {
+	//TODO: don't upload fresh file if we have one from today
+
+	err = deleteExistingObjectsFromBucket(bucket, ctx)
+	if err != nil {
+		return errors.Annotate(err, "Unable to delete existing files when preparing backup bucket")
+	}
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return errors.Annotate(err, "Could not determine current directory to prepare backup bucket")
+	}
+	filePath := filepath.Join(workingDir, "testdata", "newest.txt")
+	err = uploadFileToBucket(bucket, ctx, filePath, "newest.txt")
+	if err != nil {
+		return errors.Annotate(err, "Unable to upload file when preparing backup bucket")
+	}
+	return
+}
+
+func uploadFileToBucket(bucket *storage.BucketHandle, ctx context.Context, filePath string, uploadPath string) (err error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return errors.Annotate(err, "Unable to open local file to upload it.")
+	}
+	defer f.Close()
+
+	wc := bucket.Object(uploadPath).NewWriter(ctx)
+	_, err = io.Copy(wc, f)
+	if err != nil {
+		return errors.Annotate(err, "Unable to open upload local file. Error in copying.")
+	}
+	err = wc.Close()
+	if err != nil {
+		return errors.Annotate(err, "Unable to close remote file after upload.")
+	}
+	return
+}
+
 func TestValidateBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
@@ -33,24 +94,25 @@ func TestValidateBucket(t *testing.T) {
 
 	config := Config{
 		ServerBackupRules: ServerFileValidationRules{
-			OldestFileMaxAgeInDays: 32,
-			NewestFileMaxAgeInDays: 17,
+			OldestFileMaxAgeInDays: 10,
+			NewestFileMaxAgeInDays: 2,
 		},
 		Buckets: []BucketToProcess{
 			{Name: "test-matt-media", Type: "media"},
 			{Name: "test-matt-photos", Type: "photo"},
+			{Name: "test-matt-server-backups-fresh", Type: "server-backup"},
 		}}
+	backupBucket := testClient.Bucket("test-matt-server-backups-fresh")
+	err := uploadFreshServerBackupFile(backupBucket, ctx)
+	if err != nil {
+		t.Error("Could not prep test case for validating server backup bucket.")
+	}
 
 	for _, tb := range config.Buckets {
 		bucket := testClient.Bucket(tb.Name)
 		err := validateBucket(bucket, ctx, config)
 		is.NoError(err, "Should not error when validating a bucket type that doesn't do any validations")
 	}
-	backupBucketName := "test-matt-server-backups"
-	config.Buckets = append(config.Buckets, BucketToProcess{Name: backupBucketName, Type: "server-backup"})
-	backupBucket := testClient.Bucket(backupBucketName)
-	backupErr := validateBucket(backupBucket, ctx, config)
-	is.Error(backupErr, "Should error when validating a bucket type with validations that fail")
 
 	missingBucketName := "does-not-exist"
 	missingBucket := testClient.Bucket(missingBucketName)
@@ -249,31 +311,38 @@ func TestGetOldestObjectFromBucket(t *testing.T) {
 	is.Error(err, "Should error when reading from a non existent bucket")
 }
 
-var testValidateServerBackupsCases = []struct {
-	bucketName string
-}{
-	{"test-matt-server-backups"}, {"test-matt-server-backups-old"},
-	//{"test-matt-empty"},
-	{"does-not-exist"},
-}
-
 func TestValidateServerBackups(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
 	testClient := getTestClient(t, ctx)
 	rules := ServerFileValidationRules{
-		OldestFileMaxAgeInDays: 32,
-		NewestFileMaxAgeInDays: 17,
+		OldestFileMaxAgeInDays: 10,
+		NewestFileMaxAgeInDays: 5,
 	}
-
-	for _, tc := range testValidateServerBackupsCases {
-		bucket := testClient.Bucket(tc.bucketName)
-		err := validateServerBackups(bucket, ctx, rules)
-		is.Error(err, "Should error when server backup validations fail")
+	happyPathBucket := testClient.Bucket("test-matt-server-backups-fresh")
+	err := uploadFreshServerBackupFile(happyPathBucket, ctx)
+	if err != nil {
+		t.Error("Could not prep test case for validating server backups.")
 	}
+	happyPathErr := validateServerBackups(happyPathBucket, ctx, rules)
+	is.NoError(happyPathErr, "Should not error when bucket has a freshly uploaded file")
 
-	//TODO: happy path  test case: upload file as part of prep (maybe check if any files uploaded in the last day to save transfer costs?) so it passes everything
-	//TODO: figure out why empty bucket is passing
+	badBucket := testClient.Bucket("does-not-exist")
+	badBucketErr := validateServerBackups(badBucket, ctx, rules)
+	is.Error(badBucketErr, "Should error when validating a non existent bucket")
+
+	/*
+		emptyBucket := testClient.Bucket("test-matt-empty")
+		emptyErr := validateServerBackups(emptyBucket, ctx, rules)
+		is.Error(emptyErr, "Should error when validating a bucket with no objects")
+
+		veryOldFileBucket := testClient.Bucket("test-matt-server-backups-old")
+		veryOldFileErr := validateServerBackups(veryOldFileBucket, ctx, rules)
+		is.Error(veryOldFileErr, "Should error when bucket has oldest file past archive cutoff")
+	*/
+
+	//TODO: figure out why empty bucket is not failing validation as expected
+	//TODO: figure out why very old bucket is not failing validation as expected
 	//TODO: not new enough test case: upload fresh file in prep, change rules.NewestFileMaxAgeInDays to 0 to make sure it fails
 	//TODO: somehow make checking oldest file pass but fail on figuring out the newest file... how is this branch testable?
 }

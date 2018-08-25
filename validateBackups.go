@@ -129,7 +129,7 @@ func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, ru
 		return errors.Annotate(err, "Unable to get oldest object in bucket")
 	}
 	oldestFileMaxValidTimestamp := time.Now().AddDate(0, 0, rules.OldestFileMaxAgeInDays)
-	if oldestObjAttrs.Created.Before(oldestFileMaxValidTimestamp) {
+	if oldestObjAttrs.Created.After(oldestFileMaxValidTimestamp) {
 		return errors.New(fmt.Sprintf("Oldest file %s was created on %v, too long in the past. Check backup file archiving.", oldestObjAttrs.Name, oldestObjAttrs.Created))
 	}
 
@@ -138,7 +138,7 @@ func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, ru
 		return errors.Annotate(err, "Unable to get newest object in bucket")
 	}
 	newestFileMaxValidTimestamp := time.Now().AddDate(0, 0, rules.NewestFileMaxAgeInDays)
-	if newestObjAttrs.Created.Before(newestFileMaxValidTimestamp) {
+	if newestObjAttrs.Created.After(newestFileMaxValidTimestamp) {
 		return errors.New(fmt.Sprintf("Newest file %s was created on %v, too long in the past. Make sure backups are running", newestObjAttrs.Name, newestObjAttrs.Created))
 	}
 
