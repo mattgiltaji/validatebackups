@@ -14,6 +14,7 @@ import (
 	"google.golang.org/api/option"
 )
 
+// ***** Helpers *****
 func getTestClient(t *testing.T, ctx context.Context) (client *storage.Client) {
 	var err error
 	googleAuthFileName := "test-backup-validator-auth.json"
@@ -87,46 +88,7 @@ func uploadFileToBucket(bucket *storage.BucketHandle, ctx context.Context, fileP
 	return
 }
 
-func TestValidateBucket(t *testing.T) {
-	is := assert.New(t)
-	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
-
-	config := Config{
-		ServerBackupRules: ServerFileValidationRules{
-			OldestFileMaxAgeInDays: 10,
-			NewestFileMaxAgeInDays: 2,
-		},
-		Buckets: []BucketToProcess{
-			{Name: "test-matt-media", Type: "media"},
-			{Name: "test-matt-photos", Type: "photo"},
-			{Name: "test-matt-server-backups-fresh", Type: "server-backup"},
-		}}
-	backupBucket := testClient.Bucket("test-matt-server-backups-fresh")
-	err := uploadFreshServerBackupFile(backupBucket, ctx)
-	if err != nil {
-		t.Error("Could not prep test case for validating server backup bucket.")
-	}
-
-	for _, tb := range config.Buckets {
-		bucket := testClient.Bucket(tb.Name)
-		err := validateBucket(bucket, ctx, config)
-		is.NoError(err, "Should not error when validating a bucket type that doesn't do any validations")
-	}
-
-	missingBucketName := "does-not-exist"
-	missingBucket := testClient.Bucket(missingBucketName)
-	missingBucketErr := validateBucket(missingBucket, ctx, config)
-	is.Error(missingBucketErr, "Should error when validating a bucket that doesn't exist")
-
-	missingValidationTypeBucketName := "test-matt-empty"
-	config.Buckets = append(config.Buckets, BucketToProcess{Name: missingValidationTypeBucketName, Type: "empty"})
-	missingValidationTypeBucket := testClient.Bucket(missingValidationTypeBucketName)
-	missingValidationTypeErr := validateBucket(missingValidationTypeBucket, ctx, config)
-	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching validation logic")
-
-}
-
+// ***** Tests *****
 var testFileConfigCases = []struct {
 	filename string
 	expected Config
@@ -212,6 +174,85 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 
 	_, err = loadConfigurationFromFile(filepath.Join(testDataDir, "parseErrorConfig.json"))
 	is.Error(err, "Should error out if the config file cannot be parsed.")
+}
+
+func TestValidateBucket(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+
+	config := Config{
+		ServerBackupRules: ServerFileValidationRules{
+			OldestFileMaxAgeInDays: 10,
+			NewestFileMaxAgeInDays: 2,
+		},
+		Buckets: []BucketToProcess{
+			{Name: "test-matt-media", Type: "media"},
+			{Name: "test-matt-photos", Type: "photo"},
+			{Name: "test-matt-server-backups-fresh", Type: "server-backup"},
+		}}
+	backupBucket := testClient.Bucket("test-matt-server-backups-fresh")
+	err := uploadFreshServerBackupFile(backupBucket, ctx)
+	if err != nil {
+		t.Error("Could not prep test case for validating server backup bucket.")
+	}
+
+	for _, tb := range config.Buckets {
+		bucket := testClient.Bucket(tb.Name)
+		err := validateBucket(bucket, ctx, config)
+		is.NoError(err, "Should not error when validating a bucket type that passes validations")
+	}
+
+	missingBucketName := "does-not-exist"
+	missingBucket := testClient.Bucket(missingBucketName)
+	missingBucketErr := validateBucket(missingBucket, ctx, config)
+	is.Error(missingBucketErr, "Should error when validating a bucket that doesn't exist")
+
+	missingValidationTypeBucketName := "test-matt-empty"
+	config.Buckets = append(config.Buckets, BucketToProcess{Name: missingValidationTypeBucketName, Type: "empty"})
+	missingValidationTypeBucket := testClient.Bucket(missingValidationTypeBucketName)
+	missingValidationTypeErr := validateBucket(missingValidationTypeBucket, ctx, config)
+	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching validation logic")
+
+}
+
+func TestGetObjectsToDownloadFromBucket(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+
+	config := Config{
+		FilesToDownload: FileDownloadRules{
+			ServerBackups:        4,
+			EpisodesFromEachShow: 3,
+			PhotosFromThisMonth:  5,
+			PhotosFromEachYear:   10,
+		},
+		Buckets: []BucketToProcess{
+			{Name: "test-matt-media", Type: "media"},
+			{Name: "test-matt-photos", Type: "photo"},
+			{Name: "test-matt-server-backups", Type: "server-backup"},
+		}}
+
+	for _, tb := range config.Buckets {
+		bucket := testClient.Bucket(tb.Name)
+		_, err := getObjectsToDownloadFromBucket(bucket, ctx, config)
+		is.NoError(err, "Should not error when getting objects from valid buckets")
+	}
+
+	missingBucketName := "does-not-exist"
+	missingBucket := testClient.Bucket(missingBucketName)
+	_, missingBucketErr := getObjectsToDownloadFromBucket(missingBucket, ctx, config)
+	is.Error(missingBucketErr, "Should error when trying to get objects from bucket that doesn't exist")
+
+	missingValidationTypeBucketName := "test-matt-empty"
+	config.Buckets = append(config.Buckets, BucketToProcess{Name: missingValidationTypeBucketName, Type: "empty"})
+	missingValidationTypeBucket := testClient.Bucket(missingValidationTypeBucketName)
+	_, missingValidationTypeErr := getObjectsToDownloadFromBucket(missingValidationTypeBucket, ctx, config)
+	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching get objects logic")
+
+	//TODO: add test case where getting objects fails for photo, media, and backup buckets
+
 }
 
 var testGetBucketValidationTypeFromNameAndConfigCases = []struct {
