@@ -387,3 +387,45 @@ func TestValidateServerBackups(t *testing.T) {
 	//TODO: not new enough test case: upload fresh file in prep, change rules.NewestFileMaxAgeInDays to 0 to make sure it fails
 	//TODO: somehow make checking oldest file pass but fail on figuring out the newest file... how is this branch testable?
 }
+
+func TestGetRandomFilesFromBucket(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+
+	emptyBucket := testClient.Bucket("test-matt-empty")
+	actualEmpty, err := getRandomFilesFromBucket(emptyBucket, ctx, 0, "")
+	is.Nil(actualEmpty, "Should not find any files in an empty bucket")
+	is.NoError(err, "Should not error when reading from an empty bucket")
+
+	badBucket := testClient.Bucket("does-not-exist")
+	_, err = getRandomFilesFromBucket(badBucket, ctx, 1, "")
+	is.Error(err, "Should error when reading from a non existent bucket")
+
+	goodBucketFewFiles := testClient.Bucket("test-matt-server-backups-old")
+	_, err = getRandomFilesFromBucket(goodBucketFewFiles, ctx, -1, "")
+	is.Error(err, "Should error when requesting a negative number of files")
+	_, err = getRandomFilesFromBucket(goodBucketFewFiles, ctx, 10, "")
+	is.Error(err, "Should error when requesting more files than are available")
+
+	goodBucketManyFiles := testClient.Bucket("test-matt-media")
+	manyFiles, err := getRandomFilesFromBucket(goodBucketManyFiles, ctx, 5, "")
+	is.NoError(err, "Should not error when requesting fewer files than are available")
+	is.Equal(5, len(manyFiles), "Should get 5 filenames back when requesting 5 files")
+}
+
+func TestGetRandomSampleFromPopulation(t *testing.T) {
+	is := assert.New(t)
+	actual := getRandomSampleFromPopulation(1, 100)
+	is.Equal(1, len(actual), "Should return 1 value when requesting sample size of 1")
+
+	actual = getRandomSampleFromPopulation(100, 10000)
+	is.Equal(100, len(actual), "Should return 100 valuse when requesting sample size of 100")
+
+	actual = getRandomSampleFromPopulation(100, 10)
+	is.Nil(actual, "Should return nil when requesting large sample size than population")
+
+	actual = getRandomSampleFromPopulation(-1, 10)
+	is.Nil(actual, "Should return nil when requesting negative sample size")
+
+}

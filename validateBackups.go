@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -110,9 +111,12 @@ func getMediaFilesToDownload(bucket *storage.BucketHandle, ctx context.Context, 
 		return
 	}
 	for _, show := range shows {
-		//get rules.EpisodesFromEachShow objects from this directory in the bucket, randomly selected
-		fmt.Printf("Getting %d episodes from show %s", rules.EpisodesFromEachShow, show)
-		//TODO: actually get the shows to download
+		partialFiles, err2 := getRandomFilesFromBucket(bucket, ctx, rules.EpisodesFromEachShow, show)
+		if err2 != nil {
+			err = errors.Annotate(err2, "UNable to get random files from media bucket")
+			return
+		}
+		mediaFiles = append(mediaFiles, partialFiles...)
 	}
 	return
 }
@@ -204,4 +208,92 @@ func getOldestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context
 		}
 	}
 	return
+}
+
+// GetRandomFilesFromBucket gets a random sample of objects from a bucket with no replacement.
+// The Prefix parameter will filter the objects so all selections will have that prefix; when prefix == nil, objects will be chosen from the entire bucket.
+// Randomness is not cryptographic strength.
+func getRandomFilesFromBucket(bucket *storage.BucketHandle, ctx context.Context, num int, prefix string) (fileNames []string, err error) {
+	if num < 0 {
+		err = errors.New(fmt.Sprintf("Cannot return negative number of random files."))
+		return
+	}
+	if num == 0 {
+		//no files wanted, nothing to do
+		return
+	}
+	//get the list of matching objects
+
+	var q storage.Query
+	if len(prefix) == 0 {
+		q = storage.Query{Versions: false}
+	} else {
+		q = storage.Query{Prefix: prefix, Versions: false}
+	}
+	it := bucket.Objects(ctx, &q)
+
+	//put them into a massive slice
+	var objects []*storage.ObjectAttrs
+	for {
+		//TODO: use ctx to cancel this mid-process if requested?
+		objAttrs, err2 := it.Next()
+		if err2 == iterator.Done {
+			break
+		}
+		if err2 != nil {
+			err = errors.Annotate(err2, "Unable to get random sample from bucket")
+			return
+		}
+		objects = append(objects, objAttrs)
+	}
+	population := len(objects)
+	if num > population {
+		err = errors.New(fmt.Sprintf("Not enough files in bucket to return requested sample size %d.", num))
+		return
+	}
+
+	files := make([]string, num)
+	//figure out which indices will be selected
+	if num == population {
+		// no need to do randomness, whole population will be returned
+		for i, obj := range objects {
+			files[i] = obj.Name
+		}
+		return files, nil
+	}
+	selections := getRandomSampleFromPopulation(num, population)
+
+	for i := 0; i < num; i++ {
+		files[i] = objects[selections[i]].Name
+	}
+	return files, nil
+}
+
+func getRandomSampleFromPopulation(sampleSize, population int) []int {
+	if sampleSize > population || sampleSize <= 0 {
+		//this will get stuck in an infinite loop if we don't exit early
+		return nil
+	}
+	sample := make([]int, sampleSize)
+	i := 0
+	for { //deconstructed for loop so we can repeat iterations until we have a non-dupe
+		if i >= sampleSize {
+			break
+		}
+		selection := rand.Int() % population
+		//make sure this is not already in the previous selections
+		dupe := false
+		for j := 0; j < i; j++ {
+			if selection == sample[j] {
+				dupe = true
+				break
+			}
+		}
+		if dupe {
+			continue
+		}
+		sample[i] = selection
+		i++
+	}
+	return sample
 }
