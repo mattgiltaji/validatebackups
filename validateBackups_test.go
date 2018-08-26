@@ -53,7 +53,25 @@ func deleteExistingObjectsFromBucket(bucket *storage.BucketHandle, ctx context.C
 }
 
 func uploadFreshServerBackupFile(bucket *storage.BucketHandle, ctx context.Context) (err error) {
-	//TODO: don't upload fresh file if we have one from today
+	currFiles := bucket.Objects(ctx, nil)
+	for {
+		//TODO: use ctx to cancel this mid-process if requested?
+		objAttra, err2 := currFiles.Next()
+		if err2 == iterator.Done {
+			break
+		}
+		if err2 != nil {
+			err = errors.Annotate(err2, "Unable to get existing photos when preparing photos bucket")
+			return
+		}
+		objAge := time.Since(objAttra.Created)
+		objAgeInDays := int(objAge / (time.Hour * 24)) //close enough
+
+		if objAgeInDays <= 1 {
+			//fresh enough file already exists
+			return
+		}
+	}
 
 	err = deleteExistingObjectsFromBucket(bucket, ctx)
 	if err != nil {
