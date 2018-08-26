@@ -303,8 +303,8 @@ func TestGetMediaFilesToDownload(t *testing.T) {
 	}
 
 	happyPathBucket := testClient.Bucket("test-matt-media")
-	actuals, err := getMediaFilesToDownload(happyPathBucket, ctx, rules)
-	is.Equal(9, len(actuals))
+	actual, err := getMediaFilesToDownload(happyPathBucket, ctx, rules)
+	is.Equal(9, len(actual))
 	is.NoError(err, "Should not error when getting files to download from valid media bucket")
 
 	rules.EpisodesFromEachShow = 4
@@ -315,6 +315,14 @@ func TestGetMediaFilesToDownload(t *testing.T) {
 	_, badBucketErr := getMediaFilesToDownload(badBucket, ctx, rules)
 	is.Error(badBucketErr, "Should error when getting files to download from a non existent bucket")
 
+}
+
+func TestGetPhotosToDownload(t *testing.T) {
+	//TODO: everything
+}
+
+func TestGetServerBackupsToDownload(t *testing.T) {
+	//TODO: everything
 }
 
 var testBucketTopLevelDirsCases = []struct {
@@ -437,7 +445,7 @@ func TestGetRandomFilesFromBucket(t *testing.T) {
 	goodBucketManyFiles := testClient.Bucket("test-matt-media")
 	manyFiles, err := getRandomFilesFromBucket(goodBucketManyFiles, ctx, 5, "")
 	is.NoError(err, "Should not error when requesting fewer files than are available")
-	is.Equal(5, len(manyFiles), "Should get 5 filenames back when requesting 5 files")
+	is.Equal(5, len(manyFiles), "Should get 5 file names back when requesting 5 files")
 }
 
 func TestGetRandomSampleFromPopulation(t *testing.T) {
@@ -446,7 +454,7 @@ func TestGetRandomSampleFromPopulation(t *testing.T) {
 	is.Equal(1, len(actual), "Should return 1 value when requesting sample size of 1")
 
 	actual = getRandomSampleFromPopulation(100, 10000)
-	is.Equal(100, len(actual), "Should return 100 valuse when requesting sample size of 100")
+	is.Equal(100, len(actual), "Should return 100 values when requesting sample size of 100")
 
 	actual = getRandomSampleFromPopulation(100, 10)
 	is.Nil(actual, "Should return nil when requesting large sample size than population")
