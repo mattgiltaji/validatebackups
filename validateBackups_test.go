@@ -255,31 +255,40 @@ func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 
 }
 
-var testGetBucketValidationTypeFromNameAndConfigCases = []struct {
-	name     string
-	expected string
-}{
-	{"bucket-one", "media"},
-	{"bucket-two", "photo"},
-	{"bucket-three", "server-backup"},
-}
-
-func TestGetBucketValidationTypeFromNameAndConfig(t *testing.T) {
+func TestValidateServerBackups(t *testing.T) {
 	is := assert.New(t)
-	configs := []BucketToProcess{
-		{Name: "bucket-one", Type: "media"},
-		{Name: "bucket-two", Type: "photo"},
-		{Name: "bucket-three", Type: "server-backup"},
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+	rules := ServerFileValidationRules{
+		OldestFileMaxAgeInDays: 10,
+		NewestFileMaxAgeInDays: 5,
 	}
-	for _, tc := range testGetBucketValidationTypeFromNameAndConfigCases {
-		expected := tc.expected
-		actual, err := getBucketValidationTypeFromNameAndConfig(tc.name, configs)
-		is.NoError(err)
-		is.Equal(expected, actual)
+	happyPathBucket := testClient.Bucket("test-matt-server-backups-fresh")
+	err := uploadFreshServerBackupFile(happyPathBucket, ctx)
+	if err != nil {
+		t.Error("Could not prep test case for validating server backups.")
 	}
-	_, err := getBucketValidationTypeFromNameAndConfig("name-does-not-exist", configs)
-	is.Error(err, "Should error when unable to find matching config")
+	happyPathErr := validateServerBackups(happyPathBucket, ctx, rules)
+	is.NoError(happyPathErr, "Should not error when bucket has a freshly uploaded file")
 
+	badBucket := testClient.Bucket("does-not-exist")
+	badBucketErr := validateServerBackups(badBucket, ctx, rules)
+	is.Error(badBucketErr, "Should error when validating a non existent bucket")
+
+	/*
+		emptyBucket := testClient.Bucket("test-matt-empty")
+		emptyErr := validateServerBackups(emptyBucket, ctx, rules)
+		is.Error(emptyErr, "Should error when validating a bucket with no objects")
+
+		veryOldFileBucket := testClient.Bucket("test-matt-server-backups-old")
+		veryOldFileErr := validateServerBackups(veryOldFileBucket, ctx, rules)
+		is.Error(veryOldFileErr, "Should error when bucket has oldest file past archive cutoff")
+	*/
+
+	//TODO: figure out why empty bucket is not failing validation as expected
+	//TODO: figure out why very old bucket is not failing validation as expected
+	//TODO: not new enough test case: upload fresh file in prep, change rules.NewestFileMaxAgeInDays to 0 to make sure it fails
+	//TODO: somehow make checking oldest file pass but fail on figuring out the newest file... how is this branch testable?
 }
 
 func TestGetMediaFilesToDownload(t *testing.T) {
@@ -340,6 +349,33 @@ func TestGetBucketTopLevelDirs(t *testing.T) {
 
 }
 
+var testGetBucketValidationTypeFromNameAndConfigCases = []struct {
+	name     string
+	expected string
+}{
+	{"bucket-one", "media"},
+	{"bucket-two", "photo"},
+	{"bucket-three", "server-backup"},
+}
+
+func TestGetBucketValidationTypeFromNameAndConfig(t *testing.T) {
+	is := assert.New(t)
+	configs := []BucketToProcess{
+		{Name: "bucket-one", Type: "media"},
+		{Name: "bucket-two", Type: "photo"},
+		{Name: "bucket-three", Type: "server-backup"},
+	}
+	for _, tc := range testGetBucketValidationTypeFromNameAndConfigCases {
+		expected := tc.expected
+		actual, err := getBucketValidationTypeFromNameAndConfig(tc.name, configs)
+		is.NoError(err)
+		is.Equal(expected, actual)
+	}
+	_, err := getBucketValidationTypeFromNameAndConfig("name-does-not-exist", configs)
+	is.Error(err, "Should error when unable to find matching config")
+
+}
+
 func TestGetNewestObjectFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
@@ -376,42 +412,6 @@ func TestGetOldestObjectFromBucket(t *testing.T) {
 	badBucket := testClient.Bucket("does-not-exist")
 	_, err = getOldestObjectFromBucket(badBucket, ctx)
 	is.Error(err, "Should error when reading from a non existent bucket")
-}
-
-func TestValidateServerBackups(t *testing.T) {
-	is := assert.New(t)
-	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
-	rules := ServerFileValidationRules{
-		OldestFileMaxAgeInDays: 10,
-		NewestFileMaxAgeInDays: 5,
-	}
-	happyPathBucket := testClient.Bucket("test-matt-server-backups-fresh")
-	err := uploadFreshServerBackupFile(happyPathBucket, ctx)
-	if err != nil {
-		t.Error("Could not prep test case for validating server backups.")
-	}
-	happyPathErr := validateServerBackups(happyPathBucket, ctx, rules)
-	is.NoError(happyPathErr, "Should not error when bucket has a freshly uploaded file")
-
-	badBucket := testClient.Bucket("does-not-exist")
-	badBucketErr := validateServerBackups(badBucket, ctx, rules)
-	is.Error(badBucketErr, "Should error when validating a non existent bucket")
-
-	/*
-		emptyBucket := testClient.Bucket("test-matt-empty")
-		emptyErr := validateServerBackups(emptyBucket, ctx, rules)
-		is.Error(emptyErr, "Should error when validating a bucket with no objects")
-
-		veryOldFileBucket := testClient.Bucket("test-matt-server-backups-old")
-		veryOldFileErr := validateServerBackups(veryOldFileBucket, ctx, rules)
-		is.Error(veryOldFileErr, "Should error when bucket has oldest file past archive cutoff")
-	*/
-
-	//TODO: figure out why empty bucket is not failing validation as expected
-	//TODO: figure out why very old bucket is not failing validation as expected
-	//TODO: not new enough test case: upload fresh file in prep, change rules.NewestFileMaxAgeInDays to 0 to make sure it fails
-	//TODO: somehow make checking oldest file pass but fail on figuring out the newest file... how is this branch testable?
 }
 
 func TestGetRandomFilesFromBucket(t *testing.T) {
