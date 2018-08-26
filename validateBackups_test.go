@@ -275,6 +275,7 @@ func TestValidateServerBackups(t *testing.T) {
 	badBucketErr := validateServerBackups(badBucket, ctx, rules)
 	is.Error(badBucketErr, "Should error when validating a non existent bucket")
 
+	//TODO: figure out why empty bucket is not failing validation as expected
 	/*
 		emptyBucket := testClient.Bucket("test-matt-empty")
 		emptyErr := validateServerBackups(emptyBucket, ctx, rules)
@@ -284,8 +285,10 @@ func TestValidateServerBackups(t *testing.T) {
 	veryOldFileErr := validateServerBackups(veryOldFileBucket, ctx, rules)
 	is.Error(veryOldFileErr, "Should error when bucket has oldest file past archive cutoff")
 
-	//TODO: figure out why empty bucket is not failing validation as expected
-	//TODO: not new enough test case: upload fresh file in prep, change rules.NewestFileMaxAgeInDays to 0 to make sure it fails
+	rules.NewestFileMaxAgeInDays = 0
+	newFileTooOldErr := validateServerBackups(happyPathBucket, ctx, rules)
+	is.Error(newFileTooOldErr, "Should error when bucket has newest file past cutoff")
+
 	//TODO: somehow make checking oldest file pass but fail on figuring out the newest file... how is this branch testable?
 }
 
