@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/juju/errors"
@@ -66,6 +68,45 @@ func uploadFreshServerBackupFile(bucket *storage.BucketHandle, ctx context.Conte
 	if err != nil {
 		return errors.Annotate(err, "Unable to upload file when preparing backup bucket")
 	}
+	return
+}
+
+func uploadThisMonthPhotos(bucket *storage.BucketHandle, ctx context.Context) (err error) {
+	const numPhotosToUpload = 10
+
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return errors.Annotate(err, "Could not determine current directory to prepare photos bucket")
+	}
+	filePath := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
+	baseUploadPath := fmt.Sprintf("%d-%02d", time.Now().Year(), time.Now().Month())
+	currFiles := bucket.Objects(ctx, &storage.Query{Prefix: baseUploadPath, Versions: false})
+	numFiles := 0
+	for {
+		//TODO: use ctx to cancel this mid-process if requested?
+		_, err2 := currFiles.Next()
+		if err2 == iterator.Done {
+			break
+		}
+		if err2 != nil {
+			err = errors.Annotate(err2, "Unable to get existing photos when preparing photos bucket")
+			return
+		}
+		numFiles++
+	}
+	if numFiles >= numPhotosToUpload {
+		return
+	}
+
+	for i := 1; i <= numPhotosToUpload; i++ {
+		uploadPath := fmt.Sprintf("%s/IMG_%02d.gif", baseUploadPath, i)
+		err = uploadFileToBucket(bucket, ctx, filePath, uploadPath)
+		if err != nil {
+			return errors.Annotate(err, "Unable to upload file when preparing photos bucket")
+		}
+	}
+	//wait until they are uploaded successfully (if we had to upload them
+	time.Sleep(10 * time.Second)
 	return
 }
 
@@ -319,7 +360,38 @@ func TestGetMediaFilesToDownload(t *testing.T) {
 }
 
 func TestGetPhotosToDownload(t *testing.T) {
-	//TODO: everything
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+	rules := FileDownloadRules{
+		ServerBackups:        4,
+		EpisodesFromEachShow: 3,
+		PhotosFromThisMonth:  5,
+		PhotosFromEachYear:   10,
+	}
+
+	happyPathBucket := testClient.Bucket("test-matt-photos")
+	err := uploadThisMonthPhotos(happyPathBucket, ctx)
+	if err != nil {
+		t.Error("Could not prep test case for getting photos to download.")
+	}
+	years := time.Now().Year() - 2009 //
+	expected := years*rules.PhotosFromEachYear + rules.PhotosFromThisMonth
+	actual, err := getPhotosToDownload(happyPathBucket, ctx, rules)
+	is.Equal(expected, len(actual))
+	is.NoError(err, "Should not error when getting files to download from valid photos bucket")
+
+	rules.PhotosFromThisMonth = 11
+	_, notEnoughMonthPhotosErr := getPhotosToDownload(happyPathBucket, ctx, rules)
+	is.Error(notEnoughMonthPhotosErr, "Should error when there are not enough photos to get of this month")
+
+	rules.PhotosFromEachYear = 11
+	_, notEnoughYearPhotosErr := getPhotosToDownload(happyPathBucket, ctx, rules)
+	is.Error(notEnoughYearPhotosErr, "Should error when there are not enough photos to get of each year")
+
+	badBucket := testClient.Bucket("does-not-exist")
+	_, badBucketErr := getPhotosToDownload(badBucket, ctx, rules)
+	is.Error(badBucketErr, "Should error when getting files to download from a non existent bucket")
 }
 
 func TestGetServerBackupsToDownload(t *testing.T) {

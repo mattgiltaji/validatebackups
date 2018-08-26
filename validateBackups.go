@@ -124,10 +124,27 @@ func getMediaFilesToDownload(bucket *storage.BucketHandle, ctx context.Context, 
 }
 
 func getPhotosToDownload(bucket *storage.BucketHandle, ctx context.Context, rules FileDownloadRules) (photos []string, err error) {
-	//loop over years from 2010 to present,
+	currYear := time.Now().Year()
+
 	//each year, get rules.PhotosFromEachYear photos from that yeah, randomly selected
+	for year := 2010; year <= currYear; year++ {
+		partialPhotos, err2 := getRandomFilesFromBucket(bucket, ctx, rules.PhotosFromEachYear, fmt.Sprintf("%d-", year))
+		if err2 != nil {
+			err = errors.Annotatef(err2, "Unable to get %d random files from year %d in photo bucket", rules.EpisodesFromEachShow, year)
+			return
+		}
+		photos = append(photos, partialPhotos...)
+	}
+
 	//for this month, get rules.PhotosFromThisMonth photos from this month, randomly selected
-	//TODO: actually get the photos to download
+	partialPhotos, err := getRandomFilesFromBucket(bucket, ctx, rules.PhotosFromThisMonth, fmt.Sprintf("%d-%02d", currYear, time.Now().Month()))
+	if err != nil {
+		err = errors.Annotatef(err, "Unable to get %d random files from this month %s in photo bucket",
+			rules.PhotosFromThisMonth, fmt.Sprintf("%d-%02d", currYear, time.Now().Month()))
+		return
+	}
+	photos = append(photos, partialPhotos...)
+
 	return
 }
 
