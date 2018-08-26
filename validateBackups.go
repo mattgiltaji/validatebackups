@@ -86,8 +86,9 @@ func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, ru
 	if err != nil || oldestObjAttrs == nil {
 		return errors.Annotate(err, "Unable to get oldest object in bucket")
 	}
-	oldestFileMaxValidTimestamp := time.Now().AddDate(0, 0, rules.OldestFileMaxAgeInDays)
-	if oldestObjAttrs.Created.After(oldestFileMaxValidTimestamp) {
+	oldestFileAge := time.Since(oldestObjAttrs.Created)
+	oldestFileAgeInDays := int(oldestFileAge / (time.Hour * 24)) //this may not be 100% accurate due to daylight savings time and whatnot, but close enough
+	if oldestFileAgeInDays >= rules.OldestFileMaxAgeInDays {
 		return errors.New(fmt.Sprintf("Oldest file %s was created on %v, too long in the past. Check backup file archiving.", oldestObjAttrs.Name, oldestObjAttrs.Created))
 	}
 
@@ -95,8 +96,9 @@ func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, ru
 	if err != nil || newestObjAttrs == nil {
 		return errors.Annotate(err, "Unable to get newest object in bucket")
 	}
-	newestFileMaxValidTimestamp := time.Now().AddDate(0, 0, rules.NewestFileMaxAgeInDays)
-	if newestObjAttrs.Created.After(newestFileMaxValidTimestamp) {
+	newestFileAge := time.Since(newestObjAttrs.Created)
+	newestFileAgeInDays := int(newestFileAge / (time.Hour * 24)) //this may not be 100% accurate due to daylight savings time and whatnot, but close enough
+	if newestFileAgeInDays >= rules.NewestFileMaxAgeInDays {
 		return errors.New(fmt.Sprintf("Newest file %s was created on %v, too long in the past. Make sure backups are running", newestObjAttrs.Name, newestObjAttrs.Created))
 	}
 
