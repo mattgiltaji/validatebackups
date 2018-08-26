@@ -282,6 +282,32 @@ func TestGetBucketValidationTypeFromNameAndConfig(t *testing.T) {
 
 }
 
+func TestGetMediaFilesToDownload(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+	rules := FileDownloadRules{
+		ServerBackups:        4,
+		EpisodesFromEachShow: 3,
+		PhotosFromThisMonth:  5,
+		PhotosFromEachYear:   10,
+	}
+
+	happyPathBucket := testClient.Bucket("test-matt-media")
+	actuals, err := getMediaFilesToDownload(happyPathBucket, ctx, rules)
+	is.Equal(9, len(actuals))
+	is.NoError(err, "Should not error when getting files to download from valid media bucket")
+
+	rules.EpisodesFromEachShow = 4
+	_, notEnoughShowsErr := getMediaFilesToDownload(happyPathBucket, ctx, rules)
+	is.Error(notEnoughShowsErr, "Should error when there are not enough episodes to get of each show")
+
+	badBucket := testClient.Bucket("does-not-exist")
+	_, badBucketErr := getMediaFilesToDownload(badBucket, ctx, rules)
+	is.Error(badBucketErr, "Should error when getting files to download from a non existent bucket")
+
+}
+
 var testBucketTopLevelDirsCases = []struct {
 	bucketName string
 	expected   []string

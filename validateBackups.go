@@ -113,7 +113,7 @@ func getMediaFilesToDownload(bucket *storage.BucketHandle, ctx context.Context, 
 	for _, show := range shows {
 		partialFiles, err2 := getRandomFilesFromBucket(bucket, ctx, rules.EpisodesFromEachShow, show)
 		if err2 != nil {
-			err = errors.Annotate(err2, "UNable to get random files from media bucket")
+			err = errors.Annotatef(err2, "Unable to get %d random files from show %s in media bucket", rules.EpisodesFromEachShow, show)
 			return
 		}
 		mediaFiles = append(mediaFiles, partialFiles...)
