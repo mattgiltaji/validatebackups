@@ -9,18 +9,25 @@ install:
 - ps: iex ((New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/appveyor/secure-file/master/install.ps1'))
 - cmd: >-
     appveyor-tools\secure-file -decrypt c:\gopath\src\github.com\mattgiltaji\validatebackups\test-backup-validator-auth.json.appenc -secret %secret_key% -out c:\gopath\src\github.com\mattgiltaji\validatebackups\test-backup-validator-auth.json
+
     echo %PATH%
+
     echo %GOPATH%
+
     set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
+
     go version
+
     go env
 build_script:
 - cmd: >-
     go get -v -d ./...
+
     go build -o buildOutput\validatebackups.exe -i .
 test_script:
 - cmd: >-
     go get -v -t -d ./...
+
     go test -v -race ./...
 artifacts:
 - path: buildOutput\validatebackups.exe
