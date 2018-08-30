@@ -150,7 +150,44 @@ func getPhotosToDownload(bucket *storage.BucketHandle, ctx context.Context, rule
 
 func getServerBackupsToDownload(bucket *storage.BucketHandle, ctx context.Context, rules FileDownloadRules) (backups []string, err error) {
 	//get the most recent rules.ServerBackups backup files
-	//TODO: actually get the backups to download
+	//get all the files
+	it := bucket.Objects(ctx, nil)
+
+	files := make([]*storage.ObjectAttrs, rules.ServerBackups)
+	for {
+		//TODO: use ctx to cancel this mid-process if requested?
+		objAttrs, err2 := it.Next()
+		if err2 == iterator.Done {
+			break
+		}
+		if err2 != nil {
+			err = errors.Annotate(err2, "Unable to get random sample from bucket")
+			return
+		}
+		//if they are part of the nth most recent, save them
+		//TODO: optimize by checking last slot in files and don't loop if objAttrs don't have a chance of getting in
+		for i, file := range files {
+			if file == nil { //this spot is empty, objAttrs is recent by default
+				files[i] = objAttrs
+				break
+			}
+			if objAttrs.Created.After(files[i].Created) {
+				//objAttrs is more recent, so swap spots so whatever was in files[i] can try for the next slot up
+				files[i], objAttrs = objAttrs, files[i]
+			}
+		}
+	}
+	//some error handling
+	if files[rules.ServerBackups-1] == nil {
+		err = errors.New(fmt.Sprintf(
+			"Unable to find %d most recent files because there were not enough files in bucket", rules.ServerBackups))
+		return
+	}
+
+	//now that everything is done, convert to filenames
+	for _, file := range files {
+		backups = append(backups, file.Name)
+	}
 	return
 }
 

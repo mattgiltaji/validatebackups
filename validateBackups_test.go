@@ -413,7 +413,29 @@ func TestGetPhotosToDownload(t *testing.T) {
 }
 
 func TestGetServerBackupsToDownload(t *testing.T) {
-	//TODO: everything
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+	rules := FileDownloadRules{
+		ServerBackups:        4,
+		EpisodesFromEachShow: 3,
+		PhotosFromThisMonth:  5,
+		PhotosFromEachYear:   10,
+	}
+
+	happyPathBucket := testClient.Bucket("test-matt-server-backups")
+	expected := []string{"newest.txt", "new2.txt", "new3.txt", "new4.txt"}
+	actual, err := getServerBackupsToDownload(happyPathBucket, ctx, rules)
+	is.Equal(expected, actual)
+	is.NoError(err, "Should not error when getting files to download from valid server backup bucket")
+
+	badBucket := testClient.Bucket("does-not-exist")
+	_, badBucketErr := getServerBackupsToDownload(badBucket, ctx, rules)
+	is.Error(badBucketErr, "Should error when getting files to download from a non existent bucket")
+
+	emptyBucket := testClient.Bucket("test-matt-empty")
+	_, emptyBucketErr := getServerBackupsToDownload(emptyBucket, ctx, rules)
+	is.Error(emptyBucketErr, "Should error when getting files to download from an empty bucket")
 }
 
 var testBucketTopLevelDirsCases = []struct {
