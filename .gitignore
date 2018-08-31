@@ -14,3 +14,4 @@
 .glide/
 coverage.html
 test-backup-validator-auth.json
+downloadsInProgress.json
