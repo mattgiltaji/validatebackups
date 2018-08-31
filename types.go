@@ -24,3 +24,8 @@ type FileDownloadRules struct {
 	PhotosFromThisMonth  int `json:"photos_from_this_month"`
 	PhotosFromEachYear   int `json:"photos_from_each_year"`
 }
+
+type BucketAndFiles struct {
+	BucketName string   `json:"bucket_name"`
+	Files      []string `json:"files"`
+}
