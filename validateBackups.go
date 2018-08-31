@@ -184,7 +184,7 @@ func getServerBackupsToDownload(bucket *storage.BucketHandle, ctx context.Contex
 		return
 	}
 
-	//now that everything is done, convert to filenames
+	//now that everything is done, convert to file names
 	for _, file := range files {
 		backups = append(backups, file.Name)
 	}

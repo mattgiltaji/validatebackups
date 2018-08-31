@@ -56,7 +56,7 @@ func uploadFreshServerBackupFile(bucket *storage.BucketHandle, ctx context.Conte
 	currFiles := bucket.Objects(ctx, nil)
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
-		objAttra, err2 := currFiles.Next()
+		objAttrs, err2 := currFiles.Next()
 		if err2 == iterator.Done {
 			break
 		}
@@ -64,7 +64,7 @@ func uploadFreshServerBackupFile(bucket *storage.BucketHandle, ctx context.Conte
 			err = errors.Annotate(err2, "Unable to get existing photos when preparing photos bucket")
 			return
 		}
-		objAge := time.Since(objAttra.Created)
+		objAge := time.Since(objAttrs.Created)
 		objAgeInDays := int(objAge / (time.Hour * 24)) //close enough
 
 		if objAgeInDays <= 1 {
