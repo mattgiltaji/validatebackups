@@ -29,15 +29,10 @@ func main() {
 	logFatalIfErr(err, "Unable to connect to google cloud storage.")
 
 	//loop over relevant buckets for validating
-	//TODO: refactor into validateBucketsInConfig method
-	//TODO: move to validateBackups and add test coverage
-	for _, bucketConfig := range config.Buckets {
-		bucket := client.Bucket(bucketConfig.Name)
-		//validate the bucket, if the type merits it
-		err = validateBucket(bucket, ctx, config)
-		logFatalIfErr(err, fmt.Sprintf("Bucket %s failed validation.", bucketConfig.Name))
-
-		fmt.Println(fmt.Sprintf("Bucket %s has passed validation.", bucketConfig.Name))
+	success, err := validateBucketsInConfig(client, ctx, config)
+	logFatalIfErr(err, "Unable to validate all buckets.")
+	if success {
+		fmt.Println("All buckets have passed validation.")
 	}
 
 	//now see if we have files to download already

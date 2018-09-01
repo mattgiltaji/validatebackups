@@ -235,6 +235,44 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 	is.Error(err, "Should error out if the config file cannot be parsed.")
 }
 
+func TestValidateBucketsInConfig(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(t, ctx)
+
+	config := Config{
+		ServerBackupRules: ServerFileValidationRules{
+			OldestFileMaxAgeInDays: 10,
+			NewestFileMaxAgeInDays: 2,
+		},
+		Buckets: []BucketToProcess{
+			{Name: "test-matt-media", Type: "media"},
+			{Name: "test-matt-photos", Type: "photo"},
+			{Name: "test-matt-server-backups-fresh", Type: "server-backup"},
+		}}
+	backupBucket := testClient.Bucket("test-matt-server-backups-fresh")
+	err := uploadFreshServerBackupFile(backupBucket, ctx)
+	if err != nil {
+		t.Error("Could not prep test case for validating server backup bucket.")
+	}
+	photosBucket := testClient.Bucket("test-matt-photos")
+	err = uploadThisMonthPhotos(photosBucket, ctx)
+	if err != nil {
+		t.Error("Could not prep test case for validating photos bucket.")
+	}
+
+	actual, err := validateBucketsInConfig(testClient, ctx, config)
+	is.NoError(err, "Should not error when validating good bucket types")
+	is.True(actual, "Should return true when validations are successful")
+
+	missingBucketName := "does-not-exist"
+	config.Buckets = []BucketToProcess{{Name: missingBucketName, Type: "media"}}
+	actual, missingBucketErr := validateBucketsInConfig(testClient, ctx, config)
+	is.Error(missingBucketErr, "Should error when config has a bucket that doesn't exist")
+	is.False(actual, "Should return false if there is an error during validation")
+
+}
+
 func TestValidateBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()

@@ -25,6 +25,19 @@ func loadConfigurationFromFile(filePath string) (config Config, err error) {
 	return
 }
 
+func validateBucketsInConfig(client *storage.Client, ctx context.Context, config Config) (success bool, err error) {
+	for _, bucketConfig := range config.Buckets {
+		bucket := client.Bucket(bucketConfig.Name)
+		//validate the bucket, if the type merits it
+		err = validateBucket(bucket, ctx, config)
+		//TODO: have this function return success/failure so we only stop processing on an error and not just a failed validation
+		if err != nil {
+			return false, errors.Annotatef(err, "Unable to validate bucket %s", bucketConfig.Name)
+		}
+	}
+	return true, nil
+}
+
 func validateBucket(bucket *storage.BucketHandle, ctx context.Context, config Config) (err error) {
 	//match bucket with appropriate validator from config
 	bucketName, err := getBucketName(bucket, ctx)
