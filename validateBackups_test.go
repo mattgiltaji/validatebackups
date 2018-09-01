@@ -311,6 +311,11 @@ func TestValidateBucket(t *testing.T) {
 	missingValidationTypeErr := validateBucket(missingValidationTypeBucket, ctx, config)
 	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching validation logic")
 
+	failBucketName := "test-matt-server-backups"
+	config.Buckets = append(config.Buckets, BucketToProcess{Name: failBucketName, Type: "server-backup"})
+	failBucket := testClient.Bucket(failBucketName)
+	failBucketErr := validateBucket(failBucket, ctx, config)
+	is.Error(failBucketErr, "Should error when validations fail")
 }
 
 func TestGetObjectsToDownloadFromBucket(t *testing.T) {
@@ -348,8 +353,17 @@ func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 	_, missingValidationTypeErr := getObjectsToDownloadFromBucket(missingValidationTypeBucket, ctx, config)
 	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching get objects logic")
 
-	//TODO: add test case where getting objects fails for photo, media, and backup buckets
+	tooFewFilesNucketName := "test-matt-empty"
+	tooFewFilesBucket := testClient.Bucket(tooFewFilesNucketName)
+	config.Buckets = []BucketToProcess{{Name: tooFewFilesNucketName, Type: "photo"}}
+	_, tooFewFilesErr := getObjectsToDownloadFromBucket(tooFewFilesBucket, ctx, config)
+	is.Error(tooFewFilesErr, "Should error when bucket doesn't have enough files to get")
 
+	config.Buckets = []BucketToProcess{{Name: tooFewFilesNucketName, Type: "server-backup"}}
+	_, tooFewFilesErr = getObjectsToDownloadFromBucket(tooFewFilesBucket, ctx, config)
+	is.Error(tooFewFilesErr, "Should error when bucket doesn't have enough files to get")
+
+	//TODO: add test case for unable to get enough files for media bucket (up the episodes per show)
 }
 
 func TestValidateServerBackups(t *testing.T) {
