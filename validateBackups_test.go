@@ -363,7 +363,13 @@ func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 	_, tooFewFilesErr = getObjectsToDownloadFromBucket(tooFewFilesBucket, ctx, config)
 	is.Error(tooFewFilesErr, "Should error when bucket doesn't have enough files to get")
 
-	//TODO: add test case for unable to get enough files for media bucket (up the episodes per show)
+	config.FilesToDownload.EpisodesFromEachShow = 7
+	mediaBucketName := "test-matt-media"
+	mediaBucket := testClient.Bucket(mediaBucketName)
+	config.Buckets = []BucketToProcess{{Name: mediaBucketName, Type: "media"}}
+	_, mediaBucketErr := getObjectsToDownloadFromBucket(mediaBucket, ctx, config)
+	is.Error(mediaBucketErr, "Should error when bucket doesn't have enough files to get")
+
 }
 
 func TestValidateServerBackups(t *testing.T) {
