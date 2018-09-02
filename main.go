@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -18,6 +17,8 @@ func main() {
 		`D:\Matt\go\src\github.com\mattgiltaji\validatebackups\config.json`,
 		"path to config file")
 	flag.Parse()
+
+	const inProgressFilename = "./downloadsInProgress.json"
 
 	//load config from file
 	config, err := loadConfigurationFromFile(*configPath)
@@ -36,31 +37,19 @@ func main() {
 	}
 
 	//now see if we have files to download already
-	//TODO: add check for in progress file
-
-	//if not, make that file
-	//TODO: refactor into getObjectsToDownloadFromBucketsInConfig method
-	//TODO: move to validateBackups and add test coverage
-	bucketToFilesMapping, err := getObjectsToDownloadFromBucketsInConfig(ctx, client, config)
-	logFatalIfErr(err, "Unable to get objects to download from all buckets.")
-	//serialize bucketToFilesMapping to json file
-	saveInProgressFile(bucketToFilesMapping)
+	_, err = os.Stat(inProgressFilename)
+	if os.IsNotExist(err) {
+		//we don't have any in progress files, so make it
+		bucketToFilesMapping, err := getObjectsToDownloadFromBucketsInConfig(ctx, client, config)
+		logFatalIfErr(err, "Unable to get objects to download from all buckets.")
+		//serialize bucketToFilesMapping to json file
+		err = saveInProgressFile(inProgressFilename, bucketToFilesMapping)
+		logFatalIfErr(err, "Unable to get save in progress file.")
+	}
 
 	//now go over the file contents and download the objects locally
 	//ideally give some progress indicator : downloading X/Y files for bucket X
 	return
-}
-
-func saveInProgressFile(data []BucketAndFiles) {
-	//TODO: clean up error handling to do annotate calls and raise error up chain
-	//TODO: move to validateBackups and add test coverage
-	jsonData, err := json.Marshal(data)
-	logFatalIfErr(err, "Unable to marshal file mapping to json")
-	jsonFile, err := os.Create("./downloadsInProgress.json")
-	logFatalIfErr(err, "Unable to open downloadsInProgress file for saving data.")
-	defer jsonFile.Close()
-	_, err = jsonFile.Write(jsonData)
-	logFatalIfErr(err, "Unable to save data to downloadsInProgress file.")
 }
 
 func logFatalIfErr(err error, msg string) {

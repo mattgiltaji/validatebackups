@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/udhos/equalfile"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
@@ -319,6 +321,51 @@ func TestGetObjectsToDownloadFromBucketsInConfig(t *testing.T) {
 	config.Buckets = []BucketToProcess{{Name: missingValidationTypeBucketName, Type: "empty"}}
 	_, missingValidationTypeErr := getObjectsToDownloadFromBucketsInConfig(ctx, testClient, config)
 	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching get objects logic")
+}
+
+func TestSaveInProgressFile(t *testing.T) {
+	is := assert.New(t)
+	cmp := equalfile.New(nil, equalfile.Options{}) // compare using single mode
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Error("Could not determine current directory")
+	}
+	expectedFileName := filepath.Join(workingDir, "testdata", "inProgressData.json")
+
+	tempF, err := ioutil.TempFile("", "TestSaveInProgressFile")
+	if err != nil {
+		t.Error("Could not create temporary file")
+	}
+	tempFileName := tempF.Name()
+	defer os.Remove(tempFileName)
+
+	data := []BucketAndFiles{
+		{"test-matt-media", []string{
+			"show 1/season 1/01x01 episode.ogv",
+			"show 1/season 1/S01E22 episode.ogv",
+			"show 1/season 2/s02e02 - episode.ogv",
+			"show 2/season 3/03x03 - episode.ogv",
+			"show 2/season 5/05x01 episode.ogv",
+			"show 2/season 7/S07E77 episode.ogv",
+			"show 3/season 1000/s1000e947 - episode.ogv",
+			"show 3/specials/00x01 making of episode.ogv",
+			"show 3/specials/s00e03 - holiday special.ogv",
+		}},
+		{"test-matt-server-backups", []string{
+			"newest.txt", "new2.txt", "new3.txt", "new4.txt",
+		}},
+	}
+
+	err = saveInProgressFile("", data)
+	is.Error(err, "Should error when saving to a blank path")
+
+	err = saveInProgressFile(tempFileName, data)
+	equal, err := cmp.CompareFile(expectedFileName, tempFileName)
+	is.NoError(err, "Should not error when saving good data to good filepath.")
+	is.True(equal, "Saved file contents should match expected.")
+
+	//TODO: add test case with data that doesn't marshal to json
+	//TODO: add test case for erroring out when writing the file
 }
 
 func TestValidateBucket(t *testing.T) {

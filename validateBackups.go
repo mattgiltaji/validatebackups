@@ -51,6 +51,25 @@ func getObjectsToDownloadFromBucketsInConfig(ctx context.Context, client *storag
 	return bucketToFilesMapping, nil
 }
 
+func saveInProgressFile(filename string, data []BucketAndFiles) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return errors.Annotate(err, "Unable to marshal file mapping to json")
+	}
+
+	jsonFile, err := os.Create(filename)
+	if err != nil {
+		return errors.Annotatef(err, "Unable to open downloadsInProgress file %s for saving data.", filename)
+	}
+	defer jsonFile.Close()
+
+	_, err = jsonFile.Write(jsonData)
+	if err != nil {
+		return errors.Annotatef(err, "Unable to write downloadsInProgress data to file %s.", filename)
+	}
+	return nil
+}
+
 func validateBucket(ctx context.Context, bucket *storage.BucketHandle, config Config) (err error) {
 	//match bucket with appropriate validator from config
 	bucketName, err := getBucketName(ctx, bucket)
