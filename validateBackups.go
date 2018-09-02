@@ -38,6 +38,19 @@ func validateBucketsInConfig(ctx context.Context, client *storage.Client, config
 	return true, nil
 }
 
+func getObjectsToDownloadFromBucketsInConfig(ctx context.Context, client *storage.Client, config Config) ([]BucketAndFiles, error) {
+	bucketToFilesMapping := make([]BucketAndFiles, len(config.Buckets))
+	for i, bucketConfig := range config.Buckets {
+		bucket := client.Bucket(bucketConfig.Name)
+		files, err := getObjectsToDownloadFromBucket(ctx, bucket, config)
+		if err != nil {
+			return nil, errors.Annotatef(err, "Could not get objects to download from bucket %s", bucketConfig.Name)
+		}
+		bucketToFilesMapping[i] = BucketAndFiles{BucketName: bucketConfig.Name, Files: files}
+	}
+	return bucketToFilesMapping, nil
+}
+
 func validateBucket(ctx context.Context, bucket *storage.BucketHandle, config Config) (err error) {
 	//match bucket with appropriate validator from config
 	bucketName, err := getBucketName(ctx, bucket)

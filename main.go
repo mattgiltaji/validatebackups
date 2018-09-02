@@ -41,14 +41,8 @@ func main() {
 	//if not, make that file
 	//TODO: refactor into getObjectsToDownloadFromBucketsInConfig method
 	//TODO: move to validateBackups and add test coverage
-	bucketToFilesMapping := make([]BucketAndFiles, len(config.Buckets))
-	for i, bucketConfig := range config.Buckets {
-		bucket := client.Bucket(bucketConfig.Name)
-		//validate the bucket, if the type merits it
-		files, err := getObjectsToDownloadFromBucket(ctx, bucket, config)
-		logFatalIfErr(err, fmt.Sprintf("Bucket %s failed validation.", bucketConfig.Name))
-		bucketToFilesMapping[i] = BucketAndFiles{BucketName: bucketConfig.Name, Files: files}
-	}
+	bucketToFilesMapping, err := getObjectsToDownloadFromBucketsInConfig(ctx, client, config)
+	logFatalIfErr(err, "Unable to get objects to download from all buckets.")
 	//serialize bucketToFilesMapping to json file
 	saveInProgressFile(bucketToFilesMapping)
 

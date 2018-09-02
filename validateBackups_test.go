@@ -273,6 +273,54 @@ func TestValidateBucketsInConfig(t *testing.T) {
 
 }
 
+func TestGetObjectsToDownloadFromBucketsInConfig(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(ctx, t)
+
+	config := Config{
+		FilesToDownload: FileDownloadRules{
+			ServerBackups:        4,
+			EpisodesFromEachShow: 3,
+			PhotosFromThisMonth:  5,
+			PhotosFromEachYear:   10,
+		},
+		Buckets: []BucketToProcess{
+			{Name: "test-matt-media", Type: "media"},
+			{Name: "test-matt-server-backups", Type: "server-backup"},
+		}}
+
+	expected := []BucketAndFiles{
+		{"test-matt-media", []string{
+			"show 1/season 1/01x01 episode.ogv",
+			"show 1/season 1/S01E22 episode.ogv",
+			"show 1/season 2/s02e02 - episode.ogv",
+			"show 2/season 3/03x03 - episode.ogv",
+			"show 2/season 5/05x01 episode.ogv",
+			"show 2/season 7/S07E77 episode.ogv",
+			"show 3/season 1000/s1000e947 - episode.ogv",
+			"show 3/specials/00x01 making of episode.ogv",
+			"show 3/specials/s00e03 - holiday special.ogv",
+		}},
+		{"test-matt-server-backups", []string{
+			"newest.txt", "new2.txt", "new3.txt", "new4.txt",
+		}},
+	}
+	actual, err := getObjectsToDownloadFromBucketsInConfig(ctx, testClient, config)
+	is.NoError(err, "Should not error when getting objects from valid buckets")
+	is.Equal(expected, actual)
+
+	missingBucketName := "does-not-exist"
+	config.Buckets = []BucketToProcess{{Name: missingBucketName, Type: "photo"}}
+	_, missingBucketErr := getObjectsToDownloadFromBucketsInConfig(ctx, testClient, config)
+	is.Error(missingBucketErr, "Should error when trying to get objects from bucket that doesn't exist")
+
+	missingValidationTypeBucketName := "test-matt-empty"
+	config.Buckets = []BucketToProcess{{Name: missingValidationTypeBucketName, Type: "empty"}}
+	_, missingValidationTypeErr := getObjectsToDownloadFromBucketsInConfig(ctx, testClient, config)
+	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching get objects logic")
+}
+
 func TestValidateBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
@@ -369,7 +417,6 @@ func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 	config.Buckets = []BucketToProcess{{Name: mediaBucketName, Type: "media"}}
 	_, mediaBucketErr := getObjectsToDownloadFromBucket(ctx, mediaBucket, config)
 	is.Error(mediaBucketErr, "Should error when bucket doesn't have enough files to get")
-
 }
 
 func TestValidateServerBackups(t *testing.T) {
