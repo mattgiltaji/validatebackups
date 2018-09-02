@@ -18,7 +18,7 @@ func main() {
 		"path to config file")
 	flag.Parse()
 
-	const inProgressFilename = "./downloadsInProgress.json"
+	const inProgressFilePath = "./downloadsInProgress.json"
 
 	//load config from file
 	config, err := loadConfigurationFromFile(*configPath)
@@ -37,17 +37,20 @@ func main() {
 	}
 
 	//now see if we have files to download already
-	_, err = os.Stat(inProgressFilename)
+	_, err = os.Stat(inProgressFilePath)
 	if os.IsNotExist(err) {
 		//we don't have any in progress files, so make it
 		bucketToFilesMapping, err := getObjectsToDownloadFromBucketsInConfig(ctx, client, config)
 		logFatalIfErr(err, "Unable to get objects to download from all buckets.")
 		//serialize bucketToFilesMapping to json file
-		err = saveInProgressFile(inProgressFilename, bucketToFilesMapping)
+		err = saveInProgressFile(inProgressFilePath, bucketToFilesMapping)
 		logFatalIfErr(err, "Unable to get save in progress file.")
 	}
 
+	_, err = loadInProgressFile(inProgressFilePath)
+	logFatalIfErr(err, fmt.Sprintf("Unable to load data from progress file. Delete %s manually and rerun.", inProgressFilePath))
 	//now go over the file contents and download the objects locally
+
 	//ideally give some progress indicator : downloading X/Y files for bucket X
 	return
 }

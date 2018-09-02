@@ -365,7 +365,39 @@ func TestSaveInProgressFile(t *testing.T) {
 	is.True(equal, "Saved file contents should match expected.")
 
 	//TODO: add test case with data that doesn't marshal to json
-	//TODO: add test case for erroring out when writing the file
+}
+
+func TestLoadInProgressFile(t *testing.T) {
+	is := assert.New(t)
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Error("Could not determine current directory")
+	}
+	testFilePath := filepath.Join(workingDir, "testdata", "inProgressData.json")
+
+	expected := []BucketAndFiles{
+		{"test-matt-media", []string{
+			"show 1/season 1/01x01 episode.ogv",
+			"show 1/season 1/S01E22 episode.ogv",
+			"show 1/season 2/s02e02 - episode.ogv",
+			"show 2/season 3/03x03 - episode.ogv",
+			"show 2/season 5/05x01 episode.ogv",
+			"show 2/season 7/S07E77 episode.ogv",
+			"show 3/season 1000/s1000e947 - episode.ogv",
+			"show 3/specials/00x01 making of episode.ogv",
+			"show 3/specials/s00e03 - holiday special.ogv",
+		}},
+		{"test-matt-server-backups", []string{
+			"newest.txt", "new2.txt", "new3.txt", "new4.txt",
+		}},
+	}
+
+	_, err = loadInProgressFile("")
+	is.Error(err, "Should error when loading a file that doesn't exist")
+
+	actual, err := loadInProgressFile(testFilePath)
+	is.NoError(err, "Should not error when loading good data from good filepath.")
+	is.Equal(expected, actual, "Loaded file contents should match expected.")
 }
 
 func TestValidateBucket(t *testing.T) {

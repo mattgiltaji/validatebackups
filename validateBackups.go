@@ -51,23 +51,32 @@ func getObjectsToDownloadFromBucketsInConfig(ctx context.Context, client *storag
 	return bucketToFilesMapping, nil
 }
 
-func saveInProgressFile(filename string, data []BucketAndFiles) error {
+func saveInProgressFile(filePath string, data []BucketAndFiles) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return errors.Annotate(err, "Unable to marshal file mapping to json")
 	}
 
-	jsonFile, err := os.Create(filename)
+	jsonFile, err := os.Create(filePath)
 	if err != nil {
-		return errors.Annotatef(err, "Unable to open downloadsInProgress file %s for saving data.", filename)
+		return errors.Annotatef(err, "Unable to open downloadsInProgress file %s for saving data.", filePath)
 	}
 	defer jsonFile.Close()
 
 	_, err = jsonFile.Write(jsonData)
+	return err
+}
+
+func loadInProgressFile(filePath string) (data []BucketAndFiles, err error) {
+	inProgressFile, err := os.Open(filePath)
+	defer inProgressFile.Close()
 	if err != nil {
-		return errors.Annotatef(err, "Unable to write downloadsInProgress data to file %s.", filename)
+		err = errors.Annotatef(err, "Unable to open in progress file at %s", filePath)
+		return
 	}
-	return nil
+	jsonParser := json.NewDecoder(inProgressFile)
+	err = jsonParser.Decode(&data)
+	return
 }
 
 func validateBucket(ctx context.Context, bucket *storage.BucketHandle, config Config) (err error) {
