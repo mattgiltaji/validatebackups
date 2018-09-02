@@ -25,11 +25,11 @@ func loadConfigurationFromFile(filePath string) (config Config, err error) {
 	return
 }
 
-func validateBucketsInConfig(client *storage.Client, ctx context.Context, config Config) (success bool, err error) {
+func validateBucketsInConfig(ctx context.Context, client *storage.Client, config Config) (success bool, err error) {
 	for _, bucketConfig := range config.Buckets {
 		bucket := client.Bucket(bucketConfig.Name)
 		//validate the bucket, if the type merits it
-		err = validateBucket(bucket, ctx, config)
+		err = validateBucket(ctx, bucket, config)
 		//TODO: have this function return success/failure so we only stop processing on an error and not just a failed validation
 		if err != nil {
 			return false, errors.Annotatef(err, "Unable to validate bucket %s", bucketConfig.Name)
@@ -38,9 +38,9 @@ func validateBucketsInConfig(client *storage.Client, ctx context.Context, config
 	return true, nil
 }
 
-func validateBucket(bucket *storage.BucketHandle, ctx context.Context, config Config) (err error) {
+func validateBucket(ctx context.Context, bucket *storage.BucketHandle, config Config) (err error) {
 	//match bucket with appropriate validator from config
-	bucketName, err := getBucketName(bucket, ctx)
+	bucketName, err := getBucketName(ctx, bucket)
 	if err != nil {
 		err = errors.Annotate(err, "Unable to determine bucket name when validating.")
 		return
@@ -50,7 +50,7 @@ func validateBucket(bucket *storage.BucketHandle, ctx context.Context, config Co
 	case "media": //no validations for this type
 	case "photo": //no validations for this type
 	case "server-backup":
-		err = validateServerBackups(bucket, ctx, config.ServerBackupRules)
+		err = validateServerBackups(ctx, bucket, config.ServerBackupRules)
 		if err != nil {
 			err = errors.Annotatef(err, "Error validating bucket %s as type %s", bucketName, validationType)
 			return
@@ -61,8 +61,8 @@ func validateBucket(bucket *storage.BucketHandle, ctx context.Context, config Co
 	return
 }
 
-func getObjectsToDownloadFromBucket(bucket *storage.BucketHandle, ctx context.Context, config Config) (objects []string, err error) {
-	bucketName, err := getBucketName(bucket, ctx)
+func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketHandle, config Config) (objects []string, err error) {
+	bucketName, err := getBucketName(ctx, bucket)
 	if err != nil {
 		err = errors.Annotate(err, "Unable to determine bucket name when validating.")
 		return
@@ -70,19 +70,19 @@ func getObjectsToDownloadFromBucket(bucket *storage.BucketHandle, ctx context.Co
 	validationType, err := getBucketValidationTypeFromNameAndConfig(bucketName, config.Buckets)
 	switch validationType {
 	case "media":
-		objects, err = getMediaFilesToDownload(bucket, ctx, config.FilesToDownload)
+		objects, err = getMediaFilesToDownload(ctx, bucket, config.FilesToDownload)
 		if err != nil {
 			err = errors.Annotatef(err, "Error getting list of media files to download from %s", bucketName)
 			return
 		}
 	case "photo":
-		objects, err = getPhotosToDownload(bucket, ctx, config.FilesToDownload)
+		objects, err = getPhotosToDownload(ctx, bucket, config.FilesToDownload)
 		if err != nil {
 			err = errors.Annotatef(err, "Error getting list of photos to download from %s", bucketName)
 			return
 		}
 	case "server-backup":
-		objects, err = getServerBackupsToDownload(bucket, ctx, config.FilesToDownload)
+		objects, err = getServerBackupsToDownload(ctx, bucket, config.FilesToDownload)
 		if err != nil {
 			err = errors.Annotatef(err, "Error getting list of server backups to download from %s", bucketName)
 			return
@@ -93,9 +93,9 @@ func getObjectsToDownloadFromBucket(bucket *storage.BucketHandle, ctx context.Co
 	return
 }
 
-func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, rules ServerFileValidationRules) (err error) {
+func validateServerBackups(ctx context.Context, bucket *storage.BucketHandle, rules ServerFileValidationRules) (err error) {
 
-	oldestObjAttrs, err := getOldestObjectFromBucket(bucket, ctx)
+	oldestObjAttrs, err := getOldestObjectFromBucket(ctx, bucket)
 	if err != nil || oldestObjAttrs == nil {
 		return errors.Annotate(err, "Unable to get oldest object in bucket")
 	}
@@ -105,7 +105,7 @@ func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, ru
 		return errors.New(fmt.Sprintf("Oldest file %s was created on %v, too long in the past. Check backup file archiving.", oldestObjAttrs.Name, oldestObjAttrs.Created))
 	}
 
-	newestObjAttrs, err := getNewestObjectFromBucket(bucket, ctx)
+	newestObjAttrs, err := getNewestObjectFromBucket(ctx, bucket)
 	if err != nil || newestObjAttrs == nil {
 		return errors.Annotate(err, "Unable to get newest object in bucket")
 	}
@@ -119,14 +119,14 @@ func validateServerBackups(bucket *storage.BucketHandle, ctx context.Context, ru
 	return nil
 }
 
-func getMediaFilesToDownload(bucket *storage.BucketHandle, ctx context.Context, rules FileDownloadRules) (mediaFiles []string, err error) {
-	shows, err := getBucketTopLevelDirs(bucket, ctx) //each top level directory in a media bucket represents a show
+func getMediaFilesToDownload(ctx context.Context, bucket *storage.BucketHandle, rules FileDownloadRules) (mediaFiles []string, err error) {
+	shows, err := getBucketTopLevelDirs(ctx, bucket) //each top level directory in a media bucket represents a show
 	if err != nil {
 		err = errors.Annotate(err, "Unable to determine shows in media bucket")
 		return
 	}
 	for _, show := range shows {
-		partialFiles, err2 := getRandomFilesFromBucket(bucket, ctx, rules.EpisodesFromEachShow, show)
+		partialFiles, err2 := getRandomFilesFromBucket(ctx, bucket, rules.EpisodesFromEachShow, show)
 		if err2 != nil {
 			err = errors.Annotatef(err2, "Unable to get %d random files from show %s in media bucket", rules.EpisodesFromEachShow, show)
 			return
@@ -136,12 +136,12 @@ func getMediaFilesToDownload(bucket *storage.BucketHandle, ctx context.Context, 
 	return
 }
 
-func getPhotosToDownload(bucket *storage.BucketHandle, ctx context.Context, rules FileDownloadRules) (photos []string, err error) {
+func getPhotosToDownload(ctx context.Context, bucket *storage.BucketHandle, rules FileDownloadRules) (photos []string, err error) {
 	currYear := time.Now().Year()
 
 	//each year, get rules.PhotosFromEachYear photos from that yeah, randomly selected
 	for year := 2010; year <= currYear; year++ {
-		partialPhotos, err2 := getRandomFilesFromBucket(bucket, ctx, rules.PhotosFromEachYear, fmt.Sprintf("%d-", year))
+		partialPhotos, err2 := getRandomFilesFromBucket(ctx, bucket, rules.PhotosFromEachYear, fmt.Sprintf("%d-", year))
 		if err2 != nil {
 			err = errors.Annotatef(err2, "Unable to get %d random files from year %d in photo bucket", rules.EpisodesFromEachShow, year)
 			return
@@ -150,7 +150,7 @@ func getPhotosToDownload(bucket *storage.BucketHandle, ctx context.Context, rule
 	}
 
 	//for this month, get rules.PhotosFromThisMonth photos from this month, randomly selected
-	partialPhotos, err := getRandomFilesFromBucket(bucket, ctx, rules.PhotosFromThisMonth, fmt.Sprintf("%d-%02d", currYear, time.Now().Month()))
+	partialPhotos, err := getRandomFilesFromBucket(ctx, bucket, rules.PhotosFromThisMonth, fmt.Sprintf("%d-%02d", currYear, time.Now().Month()))
 	if err != nil {
 		err = errors.Annotatef(err, "Unable to get %d random files from this month %s in photo bucket",
 			rules.PhotosFromThisMonth, fmt.Sprintf("%d-%02d", currYear, time.Now().Month()))
@@ -161,7 +161,7 @@ func getPhotosToDownload(bucket *storage.BucketHandle, ctx context.Context, rule
 	return
 }
 
-func getServerBackupsToDownload(bucket *storage.BucketHandle, ctx context.Context, rules FileDownloadRules) (backups []string, err error) {
+func getServerBackupsToDownload(ctx context.Context, bucket *storage.BucketHandle, rules FileDownloadRules) (backups []string, err error) {
 	//get the most recent rules.ServerBackups backup files
 	//get all the files
 	it := bucket.Objects(ctx, nil)
@@ -204,7 +204,7 @@ func getServerBackupsToDownload(bucket *storage.BucketHandle, ctx context.Contex
 	return
 }
 
-func getBucketName(bucket *storage.BucketHandle, ctx context.Context) (name string, err error) {
+func getBucketName(ctx context.Context, bucket *storage.BucketHandle) (name string, err error) {
 	bucketAttrs, err := bucket.Attrs(ctx)
 	if err != nil {
 		err = errors.Annotate(err, "Unable to determine bucket name.")
@@ -214,7 +214,7 @@ func getBucketName(bucket *storage.BucketHandle, ctx context.Context) (name stri
 	return
 }
 
-func getBucketTopLevelDirs(bucket *storage.BucketHandle, ctx context.Context) (dirs []string, err error) {
+func getBucketTopLevelDirs(ctx context.Context, bucket *storage.BucketHandle) (dirs []string, err error) {
 	topLevelDirQuery := storage.Query{Delimiter: "/", Versions: false}
 	it := bucket.Objects(ctx, &topLevelDirQuery)
 	for {
@@ -241,7 +241,7 @@ func getBucketValidationTypeFromNameAndConfig(name string, configs []BucketToPro
 	return "", errors.New(fmt.Sprintf("Unable to find validation type for bucket named %s in config %v", name, configs))
 }
 
-func getNewestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context) (newestObjectAttrs *storage.ObjectAttrs, err error) {
+func getNewestObjectFromBucket(ctx context.Context, bucket *storage.BucketHandle) (newestObjectAttrs *storage.ObjectAttrs, err error) {
 	it := bucket.Objects(ctx, nil)
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
@@ -260,7 +260,7 @@ func getNewestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context
 	return
 }
 
-func getOldestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context) (oldestObjectAttrs *storage.ObjectAttrs, err error) {
+func getOldestObjectFromBucket(ctx context.Context, bucket *storage.BucketHandle) (oldestObjectAttrs *storage.ObjectAttrs, err error) {
 	it := bucket.Objects(ctx, nil)
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
@@ -282,7 +282,7 @@ func getOldestObjectFromBucket(bucket *storage.BucketHandle, ctx context.Context
 // GetRandomFilesFromBucket gets a random sample of objects from a bucket with no replacement.
 // The Prefix parameter will filter the objects so all selections will have that prefix; when prefix == nil, objects will be chosen from the entire bucket.
 // Randomness is not cryptographic strength.
-func getRandomFilesFromBucket(bucket *storage.BucketHandle, ctx context.Context, num int, prefix string) (fileNames []string, err error) {
+func getRandomFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, num int, prefix string) (fileNames []string, err error) {
 	if num < 0 {
 		err = errors.New(fmt.Sprintf("Cannot return negative number of random files."))
 		return

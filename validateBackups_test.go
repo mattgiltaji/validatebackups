@@ -17,7 +17,7 @@ import (
 )
 
 // ***** Helpers *****
-func getTestClient(t *testing.T, ctx context.Context) (client *storage.Client) {
+func getTestClient(ctx context.Context, t *testing.T) (client *storage.Client) {
 	var err error
 	googleAuthFileName := "test-backup-validator-auth.json"
 	workingDir, err := os.Getwd()
@@ -32,7 +32,7 @@ func getTestClient(t *testing.T, ctx context.Context) (client *storage.Client) {
 	return
 }
 
-func deleteExistingObjectsFromBucket(bucket *storage.BucketHandle, ctx context.Context) (err error) {
+func deleteExistingObjectsFromBucket(ctx context.Context, bucket *storage.BucketHandle) (err error) {
 	it := bucket.Objects(ctx, nil)
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
@@ -52,7 +52,7 @@ func deleteExistingObjectsFromBucket(bucket *storage.BucketHandle, ctx context.C
 	return
 }
 
-func uploadFreshServerBackupFile(bucket *storage.BucketHandle, ctx context.Context) (err error) {
+func uploadFreshServerBackupFile(ctx context.Context, bucket *storage.BucketHandle) (err error) {
 	currFiles := bucket.Objects(ctx, nil)
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
@@ -73,7 +73,7 @@ func uploadFreshServerBackupFile(bucket *storage.BucketHandle, ctx context.Conte
 		}
 	}
 
-	err = deleteExistingObjectsFromBucket(bucket, ctx)
+	err = deleteExistingObjectsFromBucket(ctx, bucket)
 	if err != nil {
 		return errors.Annotate(err, "Unable to delete existing files when preparing backup bucket")
 	}
@@ -82,14 +82,14 @@ func uploadFreshServerBackupFile(bucket *storage.BucketHandle, ctx context.Conte
 		return errors.Annotate(err, "Could not determine current directory to prepare backup bucket")
 	}
 	filePath := filepath.Join(workingDir, "testdata", "newest.txt")
-	err = uploadFileToBucket(bucket, ctx, filePath, "newest.txt")
+	err = uploadFileToBucket(ctx, bucket, filePath, "newest.txt")
 	if err != nil {
 		return errors.Annotate(err, "Unable to upload file when preparing backup bucket")
 	}
 	return
 }
 
-func uploadThisMonthPhotos(bucket *storage.BucketHandle, ctx context.Context) (err error) {
+func uploadThisMonthPhotos(ctx context.Context, bucket *storage.BucketHandle) (err error) {
 	const numPhotosToUpload = 10
 
 	workingDir, err := os.Getwd()
@@ -118,7 +118,7 @@ func uploadThisMonthPhotos(bucket *storage.BucketHandle, ctx context.Context) (e
 
 	for i := 1; i <= numPhotosToUpload; i++ {
 		uploadPath := fmt.Sprintf("%s/IMG_%02d.gif", baseUploadPath, i)
-		err = uploadFileToBucket(bucket, ctx, filePath, uploadPath)
+		err = uploadFileToBucket(ctx, bucket, filePath, uploadPath)
 		if err != nil {
 			return errors.Annotate(err, "Unable to upload file when preparing photos bucket")
 		}
@@ -128,7 +128,7 @@ func uploadThisMonthPhotos(bucket *storage.BucketHandle, ctx context.Context) (e
 	return
 }
 
-func uploadFileToBucket(bucket *storage.BucketHandle, ctx context.Context, filePath string, uploadPath string) (err error) {
+func uploadFileToBucket(ctx context.Context, bucket *storage.BucketHandle, filePath string, uploadPath string) (err error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return errors.Annotate(err, "Unable to open local file to upload it.")
@@ -238,7 +238,7 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 func TestValidateBucketsInConfig(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 
 	config := Config{
 		ServerBackupRules: ServerFileValidationRules{
@@ -251,23 +251,23 @@ func TestValidateBucketsInConfig(t *testing.T) {
 			{Name: "test-matt-server-backups-fresh", Type: "server-backup"},
 		}}
 	backupBucket := testClient.Bucket("test-matt-server-backups-fresh")
-	err := uploadFreshServerBackupFile(backupBucket, ctx)
+	err := uploadFreshServerBackupFile(ctx, backupBucket)
 	if err != nil {
 		t.Error("Could not prep test case for validating server backup bucket.")
 	}
 	photosBucket := testClient.Bucket("test-matt-photos")
-	err = uploadThisMonthPhotos(photosBucket, ctx)
+	err = uploadThisMonthPhotos(ctx, photosBucket)
 	if err != nil {
 		t.Error("Could not prep test case for validating photos bucket.")
 	}
 
-	actual, err := validateBucketsInConfig(testClient, ctx, config)
+	actual, err := validateBucketsInConfig(ctx, testClient, config)
 	is.NoError(err, "Should not error when validating good bucket types")
 	is.True(actual, "Should return true when validations are successful")
 
 	missingBucketName := "does-not-exist"
 	config.Buckets = []BucketToProcess{{Name: missingBucketName, Type: "media"}}
-	actual, missingBucketErr := validateBucketsInConfig(testClient, ctx, config)
+	actual, missingBucketErr := validateBucketsInConfig(ctx, testClient, config)
 	is.Error(missingBucketErr, "Should error when config has a bucket that doesn't exist")
 	is.False(actual, "Should return false if there is an error during validation")
 
@@ -276,7 +276,7 @@ func TestValidateBucketsInConfig(t *testing.T) {
 func TestValidateBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 
 	config := Config{
 		ServerBackupRules: ServerFileValidationRules{
@@ -289,39 +289,39 @@ func TestValidateBucket(t *testing.T) {
 			{Name: "test-matt-server-backups-fresh", Type: "server-backup"},
 		}}
 	backupBucket := testClient.Bucket("test-matt-server-backups-fresh")
-	err := uploadFreshServerBackupFile(backupBucket, ctx)
+	err := uploadFreshServerBackupFile(ctx, backupBucket)
 	if err != nil {
 		t.Error("Could not prep test case for validating server backup bucket.")
 	}
 
 	for _, tb := range config.Buckets {
 		bucket := testClient.Bucket(tb.Name)
-		err := validateBucket(bucket, ctx, config)
+		err := validateBucket(ctx, bucket, config)
 		is.NoError(err, "Should not error when validating a bucket type that passes validations")
 	}
 
 	missingBucketName := "does-not-exist"
 	missingBucket := testClient.Bucket(missingBucketName)
-	missingBucketErr := validateBucket(missingBucket, ctx, config)
+	missingBucketErr := validateBucket(ctx, missingBucket, config)
 	is.Error(missingBucketErr, "Should error when validating a bucket that doesn't exist")
 
 	missingValidationTypeBucketName := "test-matt-empty"
 	config.Buckets = append(config.Buckets, BucketToProcess{Name: missingValidationTypeBucketName, Type: "empty"})
 	missingValidationTypeBucket := testClient.Bucket(missingValidationTypeBucketName)
-	missingValidationTypeErr := validateBucket(missingValidationTypeBucket, ctx, config)
+	missingValidationTypeErr := validateBucket(ctx, missingValidationTypeBucket, config)
 	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching validation logic")
 
 	failBucketName := "test-matt-server-backups"
 	config.Buckets = append(config.Buckets, BucketToProcess{Name: failBucketName, Type: "server-backup"})
 	failBucket := testClient.Bucket(failBucketName)
-	failBucketErr := validateBucket(failBucket, ctx, config)
+	failBucketErr := validateBucket(ctx, failBucket, config)
 	is.Error(failBucketErr, "Should error when validations fail")
 }
 
 func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 
 	config := Config{
 		FilesToDownload: FileDownloadRules{
@@ -338,36 +338,36 @@ func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 
 	for _, tb := range config.Buckets {
 		bucket := testClient.Bucket(tb.Name)
-		_, err := getObjectsToDownloadFromBucket(bucket, ctx, config)
+		_, err := getObjectsToDownloadFromBucket(ctx, bucket, config)
 		is.NoError(err, "Should not error when getting objects from valid buckets")
 	}
 
 	missingBucketName := "does-not-exist"
 	missingBucket := testClient.Bucket(missingBucketName)
-	_, missingBucketErr := getObjectsToDownloadFromBucket(missingBucket, ctx, config)
+	_, missingBucketErr := getObjectsToDownloadFromBucket(ctx, missingBucket, config)
 	is.Error(missingBucketErr, "Should error when trying to get objects from bucket that doesn't exist")
 
 	missingValidationTypeBucketName := "test-matt-empty"
 	config.Buckets = append(config.Buckets, BucketToProcess{Name: missingValidationTypeBucketName, Type: "empty"})
 	missingValidationTypeBucket := testClient.Bucket(missingValidationTypeBucketName)
-	_, missingValidationTypeErr := getObjectsToDownloadFromBucket(missingValidationTypeBucket, ctx, config)
+	_, missingValidationTypeErr := getObjectsToDownloadFromBucket(ctx, missingValidationTypeBucket, config)
 	is.Error(missingValidationTypeErr, "Should error when validation type doesn't have matching get objects logic")
 
 	tooFewFilesBucketName := "test-matt-empty"
 	tooFewFilesBucket := testClient.Bucket(tooFewFilesBucketName)
 	config.Buckets = []BucketToProcess{{Name: tooFewFilesBucketName, Type: "photo"}}
-	_, tooFewFilesErr := getObjectsToDownloadFromBucket(tooFewFilesBucket, ctx, config)
+	_, tooFewFilesErr := getObjectsToDownloadFromBucket(ctx, tooFewFilesBucket, config)
 	is.Error(tooFewFilesErr, "Should error when bucket doesn't have enough files to get")
 
 	config.Buckets = []BucketToProcess{{Name: tooFewFilesBucketName, Type: "server-backup"}}
-	_, tooFewFilesErr = getObjectsToDownloadFromBucket(tooFewFilesBucket, ctx, config)
+	_, tooFewFilesErr = getObjectsToDownloadFromBucket(ctx, tooFewFilesBucket, config)
 	is.Error(tooFewFilesErr, "Should error when bucket doesn't have enough files to get")
 
 	config.FilesToDownload.EpisodesFromEachShow = 7
 	mediaBucketName := "test-matt-media"
 	mediaBucket := testClient.Bucket(mediaBucketName)
 	config.Buckets = []BucketToProcess{{Name: mediaBucketName, Type: "media"}}
-	_, mediaBucketErr := getObjectsToDownloadFromBucket(mediaBucket, ctx, config)
+	_, mediaBucketErr := getObjectsToDownloadFromBucket(ctx, mediaBucket, config)
 	is.Error(mediaBucketErr, "Should error when bucket doesn't have enough files to get")
 
 }
@@ -375,35 +375,35 @@ func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 func TestValidateServerBackups(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 	rules := ServerFileValidationRules{
 		OldestFileMaxAgeInDays: 10,
 		NewestFileMaxAgeInDays: 5,
 	}
 	happyPathBucket := testClient.Bucket("test-matt-server-backups-fresh")
-	err := uploadFreshServerBackupFile(happyPathBucket, ctx)
+	err := uploadFreshServerBackupFile(ctx, happyPathBucket)
 	if err != nil {
 		t.Error("Could not prep test case for validating server backups.")
 	}
-	happyPathErr := validateServerBackups(happyPathBucket, ctx, rules)
+	happyPathErr := validateServerBackups(ctx, happyPathBucket, rules)
 	is.NoError(happyPathErr, "Should not error when bucket has a freshly uploaded file")
 
 	badBucket := testClient.Bucket("does-not-exist")
-	badBucketErr := validateServerBackups(badBucket, ctx, rules)
+	badBucketErr := validateServerBackups(ctx, badBucket, rules)
 	is.Error(badBucketErr, "Should error when validating a non existent bucket")
 
 	//TODO: figure out why empty bucket is not failing validation as expected
 	/*
 		emptyBucket := testClient.Bucket("test-matt-empty")
-		emptyErr := validateServerBackups(emptyBucket, ctx, rules)
+		emptyErr := validateServerBackups(emptyBucket, rules)
 		is.Error(emptyErr, "Should error when validating a bucket with no objects")
 	*/
 	veryOldFileBucket := testClient.Bucket("test-matt-server-backups-old")
-	veryOldFileErr := validateServerBackups(veryOldFileBucket, ctx, rules)
+	veryOldFileErr := validateServerBackups(ctx, veryOldFileBucket, rules)
 	is.Error(veryOldFileErr, "Should error when bucket has oldest file past archive cutoff")
 
 	rules.NewestFileMaxAgeInDays = 0
-	newFileTooOldErr := validateServerBackups(happyPathBucket, ctx, rules)
+	newFileTooOldErr := validateServerBackups(ctx, happyPathBucket, rules)
 	is.Error(newFileTooOldErr, "Should error when bucket has newest file past cutoff")
 
 	//TODO: somehow make checking oldest file pass but fail on figuring out the newest file... how is this branch testable?
@@ -412,7 +412,7 @@ func TestValidateServerBackups(t *testing.T) {
 func TestGetMediaFilesToDownload(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 	rules := FileDownloadRules{
 		ServerBackups:        4,
 		EpisodesFromEachShow: 3,
@@ -421,16 +421,16 @@ func TestGetMediaFilesToDownload(t *testing.T) {
 	}
 
 	happyPathBucket := testClient.Bucket("test-matt-media")
-	actual, err := getMediaFilesToDownload(happyPathBucket, ctx, rules)
+	actual, err := getMediaFilesToDownload(ctx, happyPathBucket, rules)
 	is.Equal(9, len(actual))
 	is.NoError(err, "Should not error when getting files to download from valid media bucket")
 
 	rules.EpisodesFromEachShow = 4
-	_, notEnoughShowsErr := getMediaFilesToDownload(happyPathBucket, ctx, rules)
+	_, notEnoughShowsErr := getMediaFilesToDownload(ctx, happyPathBucket, rules)
 	is.Error(notEnoughShowsErr, "Should error when there are not enough episodes to get of each show")
 
 	badBucket := testClient.Bucket("does-not-exist")
-	_, badBucketErr := getMediaFilesToDownload(badBucket, ctx, rules)
+	_, badBucketErr := getMediaFilesToDownload(ctx, badBucket, rules)
 	is.Error(badBucketErr, "Should error when getting files to download from a non existent bucket")
 
 }
@@ -438,7 +438,7 @@ func TestGetMediaFilesToDownload(t *testing.T) {
 func TestGetPhotosToDownload(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 	rules := FileDownloadRules{
 		ServerBackups:        4,
 		EpisodesFromEachShow: 3,
@@ -447,33 +447,33 @@ func TestGetPhotosToDownload(t *testing.T) {
 	}
 
 	happyPathBucket := testClient.Bucket("test-matt-photos")
-	err := uploadThisMonthPhotos(happyPathBucket, ctx)
+	err := uploadThisMonthPhotos(ctx, happyPathBucket)
 	if err != nil {
 		t.Error("Could not prep test case for getting photos to download.")
 	}
 	years := time.Now().Year() - 2009 //
 	expected := years*rules.PhotosFromEachYear + rules.PhotosFromThisMonth
-	actual, err := getPhotosToDownload(happyPathBucket, ctx, rules)
+	actual, err := getPhotosToDownload(ctx, happyPathBucket, rules)
 	is.Equal(expected, len(actual))
 	is.NoError(err, "Should not error when getting files to download from valid photos bucket")
 
 	rules.PhotosFromThisMonth = 11
-	_, notEnoughMonthPhotosErr := getPhotosToDownload(happyPathBucket, ctx, rules)
+	_, notEnoughMonthPhotosErr := getPhotosToDownload(ctx, happyPathBucket, rules)
 	is.Error(notEnoughMonthPhotosErr, "Should error when there are not enough photos to get of this month")
 
 	rules.PhotosFromEachYear = 11
-	_, notEnoughYearPhotosErr := getPhotosToDownload(happyPathBucket, ctx, rules)
+	_, notEnoughYearPhotosErr := getPhotosToDownload(ctx, happyPathBucket, rules)
 	is.Error(notEnoughYearPhotosErr, "Should error when there are not enough photos to get of each year")
 
 	badBucket := testClient.Bucket("does-not-exist")
-	_, badBucketErr := getPhotosToDownload(badBucket, ctx, rules)
+	_, badBucketErr := getPhotosToDownload(ctx, badBucket, rules)
 	is.Error(badBucketErr, "Should error when getting files to download from a non existent bucket")
 }
 
 func TestGetServerBackupsToDownload(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 	rules := FileDownloadRules{
 		ServerBackups:        4,
 		EpisodesFromEachShow: 3,
@@ -483,16 +483,16 @@ func TestGetServerBackupsToDownload(t *testing.T) {
 
 	happyPathBucket := testClient.Bucket("test-matt-server-backups")
 	expected := []string{"newest.txt", "new2.txt", "new3.txt", "new4.txt"}
-	actual, err := getServerBackupsToDownload(happyPathBucket, ctx, rules)
+	actual, err := getServerBackupsToDownload(ctx, happyPathBucket, rules)
 	is.Equal(expected, actual)
 	is.NoError(err, "Should not error when getting files to download from valid server backup bucket")
 
 	badBucket := testClient.Bucket("does-not-exist")
-	_, badBucketErr := getServerBackupsToDownload(badBucket, ctx, rules)
+	_, badBucketErr := getServerBackupsToDownload(ctx, badBucket, rules)
 	is.Error(badBucketErr, "Should error when getting files to download from a non existent bucket")
 
 	emptyBucket := testClient.Bucket("test-matt-empty")
-	_, emptyBucketErr := getServerBackupsToDownload(emptyBucket, ctx, rules)
+	_, emptyBucketErr := getServerBackupsToDownload(ctx, emptyBucket, rules)
 	is.Error(emptyBucketErr, "Should error when getting files to download from an empty bucket")
 }
 
@@ -507,23 +507,23 @@ func TestGetBucketTopLevelDirs(t *testing.T) {
 
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 
 	for _, tc := range testBucketTopLevelDirsCases {
 		expected := tc.expected
 		bucket := testClient.Bucket(tc.bucketName)
-		actual, err := getBucketTopLevelDirs(bucket, ctx)
+		actual, err := getBucketTopLevelDirs(ctx, bucket)
 		is.NoError(err, "Should not error when reading from a populated test bucket")
 		is.Equal(expected, actual)
 	}
 
 	emptyBucket := testClient.Bucket("test-matt-empty")
-	actual, err := getBucketTopLevelDirs(emptyBucket, ctx)
+	actual, err := getBucketTopLevelDirs(ctx, emptyBucket)
 	is.Empty(actual, "Should not find any dirs in an empty bucket")
 	is.NoError(err, "Should not error when reading from an empty bucket")
 
 	badBucket := testClient.Bucket("does-not-exist")
-	_, err = getBucketTopLevelDirs(badBucket, ctx)
+	_, err = getBucketTopLevelDirs(ctx, badBucket)
 	is.Error(err, "Should error when reading from a non existent bucket")
 
 }
@@ -558,63 +558,63 @@ func TestGetBucketValidationTypeFromNameAndConfig(t *testing.T) {
 func TestGetNewestObjectFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 	bucket := testClient.Bucket("test-matt-server-backups")
-	actual, err := getNewestObjectFromBucket(bucket, ctx)
+	actual, err := getNewestObjectFromBucket(ctx, bucket)
 	is.NoError(err, "Should not error when getting latest object from bucket")
 	is.Equal("newest.txt", actual.Name)
 
 	emptyBucket := testClient.Bucket("test-matt-empty")
-	actualEmpty, err := getNewestObjectFromBucket(emptyBucket, ctx)
+	actualEmpty, err := getNewestObjectFromBucket(ctx, emptyBucket)
 	is.Nil(actualEmpty, "Should not find any dirs in an empty bucket")
 	is.NoError(err, "Should not error when reading from an empty bucket")
 
 	badBucket := testClient.Bucket("does-not-exist")
-	_, err = getNewestObjectFromBucket(badBucket, ctx)
+	_, err = getNewestObjectFromBucket(ctx, badBucket)
 	is.Error(err, "Should error when reading from a non existent bucket")
 }
 
 func TestGetOldestObjectFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 	bucket := testClient.Bucket("test-matt-server-backups")
-	actual, err := getOldestObjectFromBucket(bucket, ctx)
+	actual, err := getOldestObjectFromBucket(ctx, bucket)
 	is.NoError(err, "Should not error when getting latest object from bucket")
 	is.Equal("oldest.txt", actual.Name)
 
 	emptyBucket := testClient.Bucket("test-matt-empty")
-	actualEmpty, err := getOldestObjectFromBucket(emptyBucket, ctx)
+	actualEmpty, err := getOldestObjectFromBucket(ctx, emptyBucket)
 	is.Nil(actualEmpty, "Should not find any dirs in an empty bucket")
 	is.NoError(err, "Should not error when reading from an empty bucket")
 
 	badBucket := testClient.Bucket("does-not-exist")
-	_, err = getOldestObjectFromBucket(badBucket, ctx)
+	_, err = getOldestObjectFromBucket(ctx, badBucket)
 	is.Error(err, "Should error when reading from a non existent bucket")
 }
 
 func TestGetRandomFilesFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(t, ctx)
+	testClient := getTestClient(ctx, t)
 
 	emptyBucket := testClient.Bucket("test-matt-empty")
-	actualEmpty, err := getRandomFilesFromBucket(emptyBucket, ctx, 0, "")
+	actualEmpty, err := getRandomFilesFromBucket(ctx, emptyBucket, 0, "")
 	is.Nil(actualEmpty, "Should not find any files in an empty bucket")
 	is.NoError(err, "Should not error when reading from an empty bucket")
 
 	badBucket := testClient.Bucket("does-not-exist")
-	_, err = getRandomFilesFromBucket(badBucket, ctx, 1, "")
+	_, err = getRandomFilesFromBucket(ctx, badBucket, 1, "")
 	is.Error(err, "Should error when reading from a non existent bucket")
 
 	goodBucketFewFiles := testClient.Bucket("test-matt-server-backups-old")
-	_, err = getRandomFilesFromBucket(goodBucketFewFiles, ctx, -1, "")
+	_, err = getRandomFilesFromBucket(ctx, goodBucketFewFiles, -1, "")
 	is.Error(err, "Should error when requesting a negative number of files")
-	_, err = getRandomFilesFromBucket(goodBucketFewFiles, ctx, 10, "")
+	_, err = getRandomFilesFromBucket(ctx, goodBucketFewFiles, 10, "")
 	is.Error(err, "Should error when requesting more files than are available")
 
 	goodBucketManyFiles := testClient.Bucket("test-matt-media")
-	manyFiles, err := getRandomFilesFromBucket(goodBucketManyFiles, ctx, 5, "")
+	manyFiles, err := getRandomFilesFromBucket(ctx, goodBucketManyFiles, 5, "")
 	is.NoError(err, "Should not error when requesting fewer files than are available")
 	is.Equal(5, len(manyFiles), "Should get 5 file names back when requesting 5 files")
 }
