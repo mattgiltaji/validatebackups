@@ -363,8 +363,6 @@ func TestSaveInProgressFile(t *testing.T) {
 	equal, err := cmp.CompareFile(expectedFileName, tempFileName)
 	is.NoError(err, "Should not error when saving good data to good filepath.")
 	is.True(equal, "Saved file contents should match expected.")
-
-	//TODO: add test case with data that doesn't marshal to json
 }
 
 func TestLoadInProgressFile(t *testing.T) {
