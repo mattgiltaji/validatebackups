@@ -56,7 +56,8 @@ func validateBucket(ctx context.Context, bucket *storage.BucketHandle, config Co
 			return
 		}
 	default:
-		err = errors.New(fmt.Sprintf("No matching validation logic for bucket %s with validation type %s", bucketName, validationType))
+		err = errors.NotFoundf(
+			"No matching validation logic for bucket %s with validation type %s", bucketName, validationType)
 	}
 	return
 }
@@ -88,7 +89,8 @@ func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketH
 			return
 		}
 	default:
-		err = errors.New(fmt.Sprintf("No matching objects to download logic for bucket %s with validation type %s", bucketName, validationType))
+		err = errors.NotFoundf(
+			"No matching objects to download logic for bucket %s with validation type %s", bucketName, validationType)
 	}
 	return
 }
@@ -102,7 +104,8 @@ func validateServerBackups(ctx context.Context, bucket *storage.BucketHandle, ru
 	oldestFileAge := time.Since(oldestObjAttrs.Created)
 	oldestFileAgeInDays := int(oldestFileAge / (time.Hour * 24)) //this may not be 100% accurate due to daylight savings time and whatnot, but close enough
 	if oldestFileAgeInDays >= rules.OldestFileMaxAgeInDays {
-		return errors.New(fmt.Sprintf("Oldest file %s was created on %v, too long in the past. Check backup file archiving.", oldestObjAttrs.Name, oldestObjAttrs.Created))
+		return errors.NotValidf(
+			"Oldest file %s was created on %v, too long in the past. Check backup file archiving.", oldestObjAttrs.Name, oldestObjAttrs.Created)
 	}
 
 	newestObjAttrs, err := getNewestObjectFromBucket(ctx, bucket)
@@ -112,7 +115,8 @@ func validateServerBackups(ctx context.Context, bucket *storage.BucketHandle, ru
 	newestFileAge := time.Since(newestObjAttrs.Created)
 	newestFileAgeInDays := int(newestFileAge / (time.Hour * 24)) //this may not be 100% accurate due to daylight savings time and whatnot, but close enough
 	if newestFileAgeInDays >= rules.NewestFileMaxAgeInDays {
-		return errors.New(fmt.Sprintf("Newest file %s was created on %v, too long in the past. Make sure backups are running", newestObjAttrs.Name, newestObjAttrs.Created))
+		return errors.NotValidf(
+			"Newest file %s was created on %v, too long in the past. Make sure backups are running", newestObjAttrs.Name, newestObjAttrs.Created)
 	}
 
 	//TODO: should this return a bool up the chain instead of an err?
@@ -192,8 +196,8 @@ func getServerBackupsToDownload(ctx context.Context, bucket *storage.BucketHandl
 	}
 	//some error handling
 	if files[rules.ServerBackups-1] == nil {
-		err = errors.New(fmt.Sprintf(
-			"Unable to find %d most recent files because there were not enough files in bucket", rules.ServerBackups))
+		err = errors.NotFoundf(
+			"Unable to find %d most recent files because there were not enough files in bucket", rules.ServerBackups)
 		return
 	}
 
@@ -238,7 +242,7 @@ func getBucketValidationTypeFromNameAndConfig(name string, configs []BucketToPro
 			return config.Type, nil
 		}
 	}
-	return "", errors.New(fmt.Sprintf("Unable to find validation type for bucket named %s in config %v", name, configs))
+	return "", errors.NotFoundf("Unable to find validation type for bucket named %s in config %v", name, configs)
 }
 
 func getNewestObjectFromBucket(ctx context.Context, bucket *storage.BucketHandle) (newestObjectAttrs *storage.ObjectAttrs, err error) {
@@ -284,7 +288,7 @@ func getOldestObjectFromBucket(ctx context.Context, bucket *storage.BucketHandle
 // Randomness is not cryptographic strength.
 func getRandomFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, num int, prefix string) (fileNames []string, err error) {
 	if num < 0 {
-		err = errors.New(fmt.Sprintf("Cannot return negative number of random files."))
+		err = errors.NotValidf("Cannot return negative number of random files.")
 		return
 	}
 	if num == 0 {
@@ -317,7 +321,7 @@ func getRandomFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle,
 	}
 	population := len(objects)
 	if num > population {
-		err = errors.New(fmt.Sprintf("Not enough files in bucket to return requested sample size %d.", num))
+		err = errors.NotFoundf("Not enough files in bucket to return requested sample size %d.", num)
 		return
 	}
 
