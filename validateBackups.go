@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -425,6 +426,7 @@ func downloadFile(ctx context.Context, bucket *storage.BucketHandle, remoteFileP
 	defer rc.Close()
 
 	//prep file
+	os.MkdirAll(filepath.Dir(localFilePath), os.ModePerm)
 	localFile, err := os.Create(localFilePath)
 	if err != nil {
 		return errors.Annotatef(err, "Unable to open file %s for saving data from bucket.", localFilePath)
@@ -439,6 +441,7 @@ func downloadFile(ctx context.Context, bucket *storage.BucketHandle, remoteFileP
 
 	_, err = io.Copy(localFile, reader)
 	localFile.Close()
+	bar.Finish()
 	if err != nil {
 		return errors.Annotatef(err, "Error saving data to file %s", localFilePath)
 	}

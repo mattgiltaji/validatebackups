@@ -334,12 +334,16 @@ func TestSaveInProgressFile(t *testing.T) {
 	}
 	expectedFileName := filepath.Join(workingDir, "testdata", "inProgressData.json")
 
-	tempF, err := ioutil.TempFile("", "TestSaveInProgressFile")
+	tempDir, err := ioutil.TempDir("", "TestSaveInProgressFile")
+	if err != nil {
+		t.Error("Could not create temporary directory")
+	}
+	tempF, err := ioutil.TempFile(tempDir, "")
 	if err != nil {
 		t.Error("Could not create temporary file")
 	}
 	tempFileName := tempF.Name()
-	defer os.Remove(tempFileName)
+	defer os.RemoveAll(tempDir)
 
 	data := []BucketAndFiles{
 		{"test-matt-media", []string{
@@ -774,12 +778,12 @@ func TestDownloadFile(t *testing.T) {
 	if err != nil {
 		t.Error("Could not create temporary directory")
 	}
-	tempF, err := ioutil.TempFile(tempDir, "TestSaveInProgressFile")
+	tempF, err := ioutil.TempFile(tempDir, "")
 	if err != nil {
 		t.Error("Could not create temporary file")
 	}
 	tempFileName := tempF.Name()
-	defer os.Remove(tempFileName)
+	defer os.RemoveAll(tempDir)
 
 	expectedFileName := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
 	goodBucket := testClient.Bucket("test-matt-photos")
