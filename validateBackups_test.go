@@ -158,6 +158,7 @@ var testFileConfigCases = []struct {
 	{"fullConfig.json", Config{
 		GoogleAuthFileLocation: "over-there",
 		FileDownloadLocation:   "where-should-the-files-go",
+		MaxDownloadRetries:     42,
 		ServerBackupRules: ServerFileValidationRules{
 			OldestFileMaxAgeInDays: 32,
 			NewestFileMaxAgeInDays: 17,
@@ -178,6 +179,7 @@ var testFileConfigCases = []struct {
 	{"differentOrderConfig.json", Config{
 		GoogleAuthFileLocation: "over-there",
 		FileDownloadLocation:   "where-should-the-files-go",
+		MaxDownloadRetries:     18,
 		ServerBackupRules: ServerFileValidationRules{
 			OldestFileMaxAgeInDays: 32,
 			NewestFileMaxAgeInDays: 17,

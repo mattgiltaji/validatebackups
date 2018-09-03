@@ -21,5 +21,6 @@
     "type": "server-backup"
   }
   ],
+  "max_download_retries": 18,
   "file_download_location": "where-should-the-files-go"
 }

@@ -1,6 +1,7 @@
 {
   "google_auth_file_location": "over-there",
   "file_download_location": "where-should-the-files-go",
+  "max_download_retries": 42,
   "server_backup_rules": {
     "oldest_file_max_age_in_days": 32,
     "newest_file_max_age_in_days": 17

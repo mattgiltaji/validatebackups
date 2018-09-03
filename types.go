@@ -5,6 +5,7 @@ package main
 type Config struct {
 	GoogleAuthFileLocation string                    `json:"google_auth_file_location"`
 	FileDownloadLocation   string                    `json:"file_download_location"`
+	MaxDownloadRetries     int                       `json:"max_download_retries"`
 	ServerBackupRules      ServerFileValidationRules `json:"server_backup_rules"`
 	FilesToDownload        FileDownloadRules         `json:"files_to_download"`
 	Buckets                []BucketToProcess         `json:"buckets"`

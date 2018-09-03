@@ -1,6 +1,7 @@
 {
   "google_auth_file_location": "D:\\Matt\\Documents\\google cloud storage\\backup-validator-auth.json",
   "file_download_location": "D:\\temp\\validate_backups",
+  "max_download_retries": 5,
   "server_backup_rules": {
     "oldest_file_max_age_in_days": 60,
     "newest_file_max_age_in_days": 7
