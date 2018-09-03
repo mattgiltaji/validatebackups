@@ -136,6 +136,20 @@ func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketH
 	return
 }
 
+func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, filesToDownload []string, config Config) (err error) {
+	//loops over files, try to download each one
+	for _, remoteFile := range filesToDownload {
+		localFile := filepath.Join(config.FileDownloadLocation, remoteFile)
+		//TODO: add retry logic
+		err2 := downloadFile(ctx, bucket, remoteFile, localFile)
+		if err2 != nil {
+			err = errors.Annotatef(err2, "Error downloading %s", remoteFile)
+			return
+		}
+	}
+	return
+}
+
 func validateServerBackups(ctx context.Context, bucket *storage.BucketHandle, rules ServerFileValidationRules) (err error) {
 
 	oldestObjAttrs, err := getOldestObjectFromBucket(ctx, bucket)

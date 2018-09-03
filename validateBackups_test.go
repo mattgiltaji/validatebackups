@@ -502,6 +502,36 @@ func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 	is.Error(mediaBucketErr, "Should error when bucket doesn't have enough files to get")
 }
 
+func TestDownloadFilesFromBucket(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(ctx, t)
+	tempDir, err := ioutil.TempDir("", "TestDownloadFilesFromBucket")
+	if err != nil {
+		t.Error("Could not create temporary directory")
+	}
+	defer os.RemoveAll(tempDir)
+
+	config := Config{
+		FileDownloadLocation: tempDir,
+	}
+	files := []string{
+		"2015-02/IMG_02.gif", "2016-10/IMG_10.gif",
+	}
+
+	missingBucket := testClient.Bucket("does-not-exist")
+	missingBucketErr := downloadFilesFromBucket(ctx, missingBucket, files, config)
+	is.Error(missingBucketErr, "Should error when trying to get objects from bucket that doesn't exist")
+
+	emptyBucket := testClient.Bucket("test-matt-empty")
+	emptyBucketErr := downloadFilesFromBucket(ctx, emptyBucket, files, config)
+	is.Error(emptyBucketErr, "Should error when unable to find files in bucket")
+
+	goodBucket := testClient.Bucket("test-matt-photos")
+	goodBucketErr := downloadFilesFromBucket(ctx, goodBucket, files, config)
+	is.NoError(goodBucketErr, "Should not error when downloading good files from good bucket")
+}
+
 func TestValidateServerBackups(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
