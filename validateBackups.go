@@ -467,7 +467,7 @@ func getCrc32CFromFile(filePath string) (crc uint32, err error) {
 	//from http://mrwaggel.be/post/generate-crc32-hash-of-a-file-in-golang-turorial/
 	file, err := os.Open(filePath)
 	if err != nil {
-		err = errors.Annotatef(err, "Unable to open file %s to calculate CRC32C")
+		err = errors.Annotatef(err, "Unable to open file %s to calculate CRC32C", filePath)
 		return
 	}
 	defer file.Close()
@@ -477,7 +477,7 @@ func getCrc32CFromFile(filePath string) (crc uint32, err error) {
 
 	_, err = io.Copy(hash, file)
 	if err != nil {
-		err = errors.Annotatef(err, "Unable to hash file %s to calculate CRC32C")
+		err = errors.Annotatef(err, "Unable to hash file %s to calculate CRC32C", filePath)
 		return
 	}
 
