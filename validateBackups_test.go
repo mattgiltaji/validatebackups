@@ -404,6 +404,33 @@ func TestLoadInProgressFile(t *testing.T) {
 	is.Equal(expected, actual, "Loaded file contents should match expected.")
 }
 
+func TestDownloadFilesFromBucketAndFiles(t *testing.T) {
+	is := assert.New(t)
+	ctx := context.Background()
+	testClient := getTestClient(ctx, t)
+	tempDir, err := ioutil.TempDir("", "TestDownloadFilesFromBucketAndFiles")
+	if err != nil {
+		t.Error("Could not create temporary directory")
+	}
+	defer os.RemoveAll(tempDir)
+
+	config := Config{
+		FileDownloadLocation: tempDir,
+		MaxDownloadRetries:   2,
+	}
+	mapping := []BucketAndFiles{
+		{"test-matt-photos",
+			[]string{"2015-02/IMG_02.gif", "2016-10/IMG_10.gif"}},
+	}
+
+	goodBucketErr := downloadFilesFromBucketAndFiles(ctx, testClient, config, mapping)
+	is.NoError(goodBucketErr, "Should not error when downloading good files from good bucketw")
+
+	config.FileDownloadLocation = "E:/does/not/exist"
+	badLocationErr := downloadFilesFromBucketAndFiles(ctx, testClient, config, mapping)
+	is.Error(badLocationErr, "Should error when downloading files to invalid location")
+}
+
 func TestValidateBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()

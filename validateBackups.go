@@ -79,6 +79,17 @@ func loadInProgressFile(filePath string) (data []BucketAndFiles, err error) {
 	return
 }
 
+func downloadFilesFromBucketAndFiles(ctx context.Context, client *storage.Client, config Config, mapping []BucketAndFiles) (err error) {
+	for _, bucketAndFiles := range mapping {
+		bucket := client.Bucket(bucketAndFiles.BucketName)
+		err := downloadFilesFromBucket(ctx, bucket, bucketAndFiles.Files, config)
+		if err != nil {
+			return errors.Annotatef(err, "Error while downloading files for bucket %s", bucketAndFiles.BucketName)
+		}
+	}
+	return
+}
+
 func validateBucket(ctx context.Context, bucket *storage.BucketHandle, config Config) (err error) {
 	//match bucket with appropriate validator from config
 	bucketName, err := getBucketName(ctx, bucket)
@@ -137,7 +148,6 @@ func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketH
 }
 
 func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, filesToDownload []string, config Config) (err error) {
-	//loops over files, try to download each one
 	for _, remoteFile := range filesToDownload {
 		localFile := filepath.Join(config.FileDownloadLocation, remoteFile)
 		retryCount := 0
