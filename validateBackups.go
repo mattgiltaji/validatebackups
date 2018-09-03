@@ -80,6 +80,7 @@ func loadInProgressFile(filePath string) (data []BucketAndFiles, err error) {
 }
 
 func downloadFilesFromBucketAndFiles(ctx context.Context, client *storage.Client, config Config, mapping []BucketAndFiles) (err error) {
+	//TODO: add progress bar that increments per bucket
 	for _, bucketAndFiles := range mapping {
 		bucket := client.Bucket(bucketAndFiles.BucketName)
 		err := downloadFilesFromBucket(ctx, bucket, bucketAndFiles.Files, config)
@@ -148,6 +149,7 @@ func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketH
 }
 
 func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, filesToDownload []string, config Config) (err error) {
+	//TODO: add progress bar that increments per file downloaded successfully
 	for _, remoteFile := range filesToDownload {
 		localFile := filepath.Join(config.FileDownloadLocation, remoteFile)
 		retryCount := 0

@@ -47,11 +47,16 @@ func main() {
 		logFatalIfErr(err, "Unable to get save in progress file.")
 	}
 
-	_, err = loadInProgressFile(inProgressFilePath)
+	mapping, err := loadInProgressFile(inProgressFilePath)
 	logFatalIfErr(err, fmt.Sprintf("Unable to load data from progress file. Delete %s manually and rerun.", inProgressFilePath))
+
 	//now go over the file contents and download the objects locally
 
-	//ideally give some progress indicator : downloading X/Y files for bucket X
+	err = downloadFilesFromBucketAndFiles(ctx, client, config, mapping)
+	logFatalIfErr(err, "Error while downloading files. Please rerun to try again.")
+
+	//everything successful, delete the in progress file.
+	os.Remove(inProgressFilePath)
 	return
 }
 

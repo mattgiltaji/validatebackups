@@ -424,9 +424,9 @@ func TestDownloadFilesFromBucketAndFiles(t *testing.T) {
 	}
 
 	goodBucketErr := downloadFilesFromBucketAndFiles(ctx, testClient, config, mapping)
-	is.NoError(goodBucketErr, "Should not error when downloading good files from good bucketw")
+	is.NoError(goodBucketErr, "Should not error when downloading good files from good bucket")
 
-	config.FileDownloadLocation = "E:/does/not/exist"
+	config.FileDownloadLocation = "E:\\does\\not\\exist"
 	badLocationErr := downloadFilesFromBucketAndFiles(ctx, testClient, config, mapping)
 	is.Error(badLocationErr, "Should error when downloading files to invalid location")
 }
