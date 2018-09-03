@@ -759,6 +759,42 @@ func TestGetRandomSampleFromPopulation(t *testing.T) {
 
 }
 
+func TestDownloadFile(t *testing.T) {
+	is := assert.New(t)
+	cmp := equalfile.New(nil, equalfile.Options{}) // compare using single mode
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Error("Could not determine current directory")
+	}
+	ctx := context.Background()
+	testClient := getTestClient(ctx, t)
+	tempDir, err := ioutil.TempDir("", "TestDownloadFile")
+	if err != nil {
+		t.Error("Could not create temporary directory")
+	}
+	tempF, err := ioutil.TempFile(tempDir, "TestSaveInProgressFile")
+	if err != nil {
+		t.Error("Could not create temporary file")
+	}
+	tempFileName := tempF.Name()
+	defer os.Remove(tempFileName)
+
+	expectedFileName := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
+	goodBucket := testClient.Bucket("test-matt-photos")
+	emptyBucket := testClient.Bucket("test-matt-empty")
+
+	err = downloadFile(ctx, emptyBucket, "2014-11/IMG_09.gif", tempFileName)
+	is.Error(err, "Should error when downloading a file that doesn't exist.")
+
+	err = downloadFile(ctx, goodBucket, "2014-11/IMG_09.gif", "E:/lol/")
+	is.Error(err, "Should error when downloading to a bad path.")
+
+	err = downloadFile(ctx, goodBucket, "2014-11/IMG_09.gif", tempFileName)
+	equal, err := cmp.CompareFile(expectedFileName, tempFileName)
+	is.NoError(err, "Should not error when downloading a good file.")
+	is.True(equal, "Saved file contents should match expected.")
+}
+
 func TestVerifyDownloadedFile(t *testing.T) {
 	is := assert.New(t)
 	workingDir, err := os.Getwd()

@@ -447,20 +447,18 @@ func downloadFile(ctx context.Context, bucket *storage.BucketHandle, remoteFileP
 }
 
 func verifyDownloadedFile(objAttrs *storage.ObjectAttrs, filePath string) (err error) {
-	fileInfo, err := os.Stat(filePath)
 	//compare expected size vs actual
+	fileInfo, err := os.Stat(filePath)
 	if objAttrs.Size != fileInfo.Size() {
 		return errors.NotValidf("Size mismatch, expected %d found %d", objAttrs.Size, fileInfo.Size())
 	}
 
 	//compare CRC32C expected vs actual
-
 	localCRC, err := getCrc32CFromFile(filePath)
 	remoteCRC := objAttrs.CRC32C
 	if remoteCRC != localCRC {
 		return errors.NotValidf("Bad CRC, expected %d found %d", remoteCRC, localCRC)
 	}
-
 	return
 }
 
