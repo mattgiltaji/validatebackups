@@ -861,6 +861,12 @@ func TestDownloadFile(t *testing.T) {
 	equal, err := cmp.CompareFile(expectedFileName, tempFileName)
 	is.NoError(err, "Should not error when downloading a good file.")
 	is.True(equal, "Saved file contents should match expected.")
+
+	existingFileErr := downloadFile(ctx, goodBucket, "2014-11/IMG_09.gif", tempFileName)
+	equal, err = cmp.CompareFile(expectedFileName, tempFileName)
+	is.Error(existingFileErr, "Should error when file already exists and matches contents.")
+	is.True(errors.IsAlreadyExists(existingFileErr), "Should send alrady exists error when file already exists and matches contents.")
+	is.True(equal, "Saved file contents should match expected.")
 }
 
 func TestVerifyDownloadedFile(t *testing.T) {
@@ -881,14 +887,24 @@ func TestVerifyDownloadedFile(t *testing.T) {
 		t.Error("Could not load remote test file")
 	}
 
+	err = verifyDownloadedFile(nil, diffSizeTestFile)
+	is.Error(err, "Should error but not panic when passed a bad objAttrs")
+	is.True(errors.IsNotValid(err), "Should return NotValid error when passed a bad objAttrs")
+
+	err = verifyDownloadedFile(testObj, "/does/not/exist")
+	is.Error(err, "Should error but not panic when passed a bad file path")
+	is.True(errors.IsNotFound(err), "Should return NotFound error when passed a bad file path")
+
 	err = verifyDownloadedFile(testObj, sameContentsTestFile)
 	is.NoError(err, "Should verify that same contents mean same file")
 
 	err = verifyDownloadedFile(testObj, diffSizeTestFile)
 	is.Error(err, "Should verify that different sizes mean different file")
+	is.True(errors.IsNotValid(err), "Should return NotValid error when file has a different size")
 
 	err = verifyDownloadedFile(testObj, sameSizeDiffContentsTestFile)
 	is.Error(err, "Should verify that different contents mean different file")
+	is.True(errors.IsNotValid(err), "Should return NotValid error when file has different contents")
 }
 
 func TestGetCrc32CFromFile(t *testing.T) {

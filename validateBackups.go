@@ -159,6 +159,10 @@ func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, 
 				//download successful!
 				break
 			}
+			if errors.IsAlreadyExists(err2) {
+				//download successful!
+				break
+			}
 			if errors.IsNotFound(err2) {
 				//no sense retrying if we can't find the file
 				err = errors.Annotatef(err2, "Could not find %s to download it", remoteFile)
@@ -457,6 +461,13 @@ func downloadFile(ctx context.Context, bucket *storage.BucketHandle, remoteFileP
 		return errors.NotFoundf("Unable to find file in bucket at %s", remoteFilePath)
 	}
 
+	//if the file already exists and is valid, skip it
+	err = verifyDownloadedFile(attrs, localFilePath)
+	if err == nil {
+		//file already downloaded
+		return errors.AlreadyExistsf("File %s has already been downloaded successfully.", localFilePath)
+	}
+
 	rc, err := obj.NewReader(ctx)
 	if err != nil {
 		return errors.NotFoundf("Unable to download file at %s", remoteFilePath)
@@ -488,8 +499,16 @@ func downloadFile(ctx context.Context, bucket *storage.BucketHandle, remoteFileP
 }
 
 func verifyDownloadedFile(objAttrs *storage.ObjectAttrs, filePath string) (err error) {
+	if objAttrs == nil {
+		return errors.NotValidf("Cannot validate file %s against an invalid object attr record.", filePath)
+	}
+
 	//compare expected size vs actual
 	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return errors.NotFoundf("Cannot validate file that doesn't exist.")
+	}
+
 	if objAttrs.Size != fileInfo.Size() {
 		return errors.NotValidf("Size mismatch, expected %d found %d", objAttrs.Size, fileInfo.Size())
 	}
