@@ -804,11 +804,11 @@ func TestVerifyDownloadedFile(t *testing.T) {
 	ctx := context.Background()
 	testClient := getTestClient(ctx, t)
 
-	sameContentsTestFile := filepath.Join(workingDir, "testdata", "newest.txt")
-	diffSizeTestFile := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
-	sameSizeDiffContentsTestFile := filepath.Join(workingDir, "testdata", "badServerBackup.txt")
+	sameContentsTestFile := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
+	diffSizeTestFile := filepath.Join(workingDir, "testdata", "newest.txt")
+	sameSizeDiffContentsTestFile := filepath.Join(workingDir, "testdata", "Gray_1x1.gif")
 
-	testObj, err := testClient.Bucket("test-matt-server-backups").Object("newest.txt").Attrs(ctx)
+	testObj, err := testClient.Bucket("test-matt-photos").Object("2012-12/IMG_02.gif").Attrs(ctx)
 	if err != nil {
 		t.Error("Could not load remote test file")
 	}
