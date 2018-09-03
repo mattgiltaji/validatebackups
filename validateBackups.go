@@ -140,11 +140,23 @@ func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, 
 	//loops over files, try to download each one
 	for _, remoteFile := range filesToDownload {
 		localFile := filepath.Join(config.FileDownloadLocation, remoteFile)
-		//TODO: add retry logic
-		err2 := downloadFile(ctx, bucket, remoteFile, localFile)
-		if err2 != nil {
-			err = errors.Annotatef(err2, "Error downloading %s", remoteFile)
-			return
+		retryCount := 0
+		for {
+			err2 := downloadFile(ctx, bucket, remoteFile, localFile)
+			if err2 == nil {
+				//download successful!
+				break
+			}
+			if errors.IsNotFound(err2) {
+				//no sense retrying if we can't find the file
+				err = errors.Annotatef(err2, "Could not find %s to download it", remoteFile)
+				return
+			}
+			retryCount++
+			if retryCount > config.MaxDownloadRetries {
+				err = errors.Annotatef(err2, "Could not download %s. Retried max number of times.", remoteFile)
+				return
+			}
 		}
 	}
 	return

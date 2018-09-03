@@ -514,6 +514,7 @@ func TestDownloadFilesFromBucket(t *testing.T) {
 
 	config := Config{
 		FileDownloadLocation: tempDir,
+		MaxDownloadRetries:   2,
 	}
 	files := []string{
 		"2015-02/IMG_02.gif", "2016-10/IMG_10.gif",
@@ -530,6 +531,10 @@ func TestDownloadFilesFromBucket(t *testing.T) {
 	goodBucket := testClient.Bucket("test-matt-photos")
 	goodBucketErr := downloadFilesFromBucket(ctx, goodBucket, files, config)
 	is.NoError(goodBucketErr, "Should not error when downloading good files from good bucket")
+
+	config.FileDownloadLocation = "E:/does/not/exist"
+	badLocationErr := downloadFilesFromBucket(ctx, goodBucket, files, config)
+	is.Error(badLocationErr, "Should error when downloading files to invalid location")
 }
 
 func TestValidateServerBackups(t *testing.T) {
