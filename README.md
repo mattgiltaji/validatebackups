@@ -18,12 +18,14 @@ to Go, fixing some bugs and design issues along the way.
 - [x] Connect to google cloud storage
 - [x] Run validation procedure for known buckets
 - [x] These validation procedures are similar but not identical
-- [ ] Download files that need to be manually validated
-- [ ] Report success/failure for each bucket
+- [x] Download files that need to be manually validated
+- [x] Report success/failure for each bucket
 
 ## Things to be addressed
 * Python script needs to be restarted from the beginning if a download fails partway through.
   * Catch a failing download partway through and just restart for that file.
+    * This utility retries each failed download a configurable number of times
   * Serialize progress somehow so restarting the utility resumes from where it left off.
+    * This utility skips already downloaded files and restart from the next file in sequence instead of the beginning all over again.
 * ~~Python script's unit test suite runs integration tests that depend on accessing google cloud.~~
   * Go's mocking couldn't quite handle abstracting this away, so we connect to google cloud too ¯\\_(ツ)_/¯
