@@ -29,7 +29,7 @@ func main() {
 	client, err := storage.NewClient(ctx, option.WithCredentialsFile(config.GoogleAuthFileLocation))
 	logFatalIfErr(err, "Unable to connect to google cloud storage.")
 
-	//loop over relevant buckets for validating
+	fmt.Println("Validating buckets.")
 	success, err := validateBucketsInConfig(ctx, client, config)
 	logFatalIfErr(err, "Unable to validate all buckets.")
 	if success {
@@ -39,19 +39,22 @@ func main() {
 	//now see if we have files to download already
 	_, err = os.Stat(inProgressFilePath)
 	if os.IsNotExist(err) {
+		fmt.Println("No in progress file found, determining random files to download.")
 		//we don't have any in progress files, so make it
 		bucketToFilesMapping, err := getObjectsToDownloadFromBucketsInConfig(ctx, client, config)
 		logFatalIfErr(err, "Unable to get objects to download from all buckets.")
 		//serialize bucketToFilesMapping to json file
 		err = saveInProgressFile(inProgressFilePath, bucketToFilesMapping)
 		logFatalIfErr(err, "Unable to get save in progress file.")
+	} else {
+		fmt.Println("In progress file found, resuming from last run.")
 	}
 
 	mapping, err := loadInProgressFile(inProgressFilePath)
 	logFatalIfErr(err, fmt.Sprintf("Unable to load data from progress file. Delete %s manually and rerun.", inProgressFilePath))
 
 	//now go over the file contents and download the objects locally
-
+	fmt.Println("Downloading files.")
 	err = downloadFilesFromBucketAndFiles(ctx, client, config, mapping)
 	logFatalIfErr(err, "Error while downloading files. Please rerun to try again.")
 

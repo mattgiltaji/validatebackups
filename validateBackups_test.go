@@ -559,6 +559,9 @@ func TestDownloadFilesFromBucket(t *testing.T) {
 	goodBucketErr := downloadFilesFromBucket(ctx, goodBucket, files, config)
 	is.NoError(goodBucketErr, "Should not error when downloading good files from good bucket")
 
+	existingFilesErr := downloadFilesFromBucket(ctx, goodBucket, files, config)
+	is.NoError(existingFilesErr, "Should not error when retrying to download good files from good bucket")
+
 	config.FileDownloadLocation = "E:/does/not/exist"
 	badLocationErr := downloadFilesFromBucket(ctx, goodBucket, files, config)
 	is.Error(badLocationErr, "Should error when downloading files to invalid location")
@@ -865,7 +868,7 @@ func TestDownloadFile(t *testing.T) {
 	existingFileErr := downloadFile(ctx, goodBucket, "2014-11/IMG_09.gif", tempFileName)
 	equal, err = cmp.CompareFile(expectedFileName, tempFileName)
 	is.Error(existingFileErr, "Should error when file already exists and matches contents.")
-	is.True(errors.IsAlreadyExists(existingFileErr), "Should send alrady exists error when file already exists and matches contents.")
+	is.True(errors.IsAlreadyExists(existingFileErr), "Should send already exists error when file already exists and matches contents.")
 	is.True(equal, "Saved file contents should match expected.")
 }
 

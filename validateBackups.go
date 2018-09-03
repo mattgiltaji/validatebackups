@@ -30,9 +30,11 @@ func loadConfigurationFromFile(filePath string) (config Config, err error) {
 }
 
 func validateBucketsInConfig(ctx context.Context, client *storage.Client, config Config) (success bool, err error) {
-	for _, bucketConfig := range config.Buckets {
+	totalBuckets := len(config.Buckets)
+	for i, bucketConfig := range config.Buckets {
 		bucket := client.Bucket(bucketConfig.Name)
 		//validate the bucket, if the type merits it
+		fmt.Println(fmt.Sprintf("Validating files in bucket %d of %d, %s", i+1, totalBuckets, bucketConfig.Name))
 		err = validateBucket(ctx, bucket, config)
 		//TODO: have this function return success/failure so we only stop processing on an error and not just a failed validation
 		if err != nil {
@@ -43,9 +45,11 @@ func validateBucketsInConfig(ctx context.Context, client *storage.Client, config
 }
 
 func getObjectsToDownloadFromBucketsInConfig(ctx context.Context, client *storage.Client, config Config) ([]BucketAndFiles, error) {
+	totalBuckets := len(config.Buckets)
 	bucketToFilesMapping := make([]BucketAndFiles, len(config.Buckets))
 	for i, bucketConfig := range config.Buckets {
 		bucket := client.Bucket(bucketConfig.Name)
+		fmt.Println(fmt.Sprintf("Getting files to download from bucket %d of %d, %s", i+1, totalBuckets, bucketConfig.Name))
 		files, err := getObjectsToDownloadFromBucket(ctx, bucket, config)
 		if err != nil {
 			return nil, errors.Annotatef(err, "Could not get objects to download from bucket %s", bucketConfig.Name)
@@ -80,9 +84,10 @@ func loadInProgressFile(filePath string) (data []BucketAndFiles, err error) {
 }
 
 func downloadFilesFromBucketAndFiles(ctx context.Context, client *storage.Client, config Config, mapping []BucketAndFiles) (err error) {
-	//TODO: add progress bar that increments per bucket
-	for _, bucketAndFiles := range mapping {
+	totalBuckets := len(mapping)
+	for i, bucketAndFiles := range mapping {
 		bucket := client.Bucket(bucketAndFiles.BucketName)
+		fmt.Println(fmt.Sprintf("Downloading files in bucket %d of %d, %s", i+1, totalBuckets, bucketAndFiles.BucketName))
 		err := downloadFilesFromBucket(ctx, bucket, bucketAndFiles.Files, config)
 		if err != nil {
 			return errors.Annotatef(err, "Error while downloading files for bucket %s", bucketAndFiles.BucketName)
@@ -149,10 +154,12 @@ func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketH
 }
 
 func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, filesToDownload []string, config Config) (err error) {
-	//TODO: add progress bar that increments per file downloaded successfully
-	for _, remoteFile := range filesToDownload {
+
+	totalFiles := len(filesToDownload)
+	for i, remoteFile := range filesToDownload {
 		localFile := filepath.Join(config.FileDownloadLocation, remoteFile)
 		retryCount := 0
+		fmt.Println(fmt.Sprintf("Downloading %d of %d, %s", i+1, totalFiles, remoteFile))
 		for {
 			err2 := downloadFile(ctx, bucket, remoteFile, localFile)
 			if err2 == nil {
@@ -161,6 +168,7 @@ func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, 
 			}
 			if errors.IsAlreadyExists(err2) {
 				//download successful!
+				fmt.Println("Skipping already downloaded file.")
 				break
 			}
 			if errors.IsNotFound(err2) {
@@ -173,6 +181,7 @@ func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, 
 				err = errors.Annotatef(err2, "Could not download %s. Retried max number of times.", remoteFile)
 				return
 			}
+			fmt.Println(fmt.Sprintf("Failed, retry %d of %d.", retryCount, config.MaxDownloadRetries))
 		}
 	}
 	return
