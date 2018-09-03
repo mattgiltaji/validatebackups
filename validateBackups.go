@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/crc32"
+	"io"
 	"math/rand"
 	"os"
 	"time"
@@ -11,6 +13,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/juju/errors"
 	"google.golang.org/api/iterator"
+	"gopkg.in/cheggaaa/pb.v1"
 )
 
 func loadConfigurationFromFile(filePath string) (config Config, err error) {
@@ -65,11 +68,11 @@ func saveInProgressFile(filePath string, data []BucketAndFiles) error {
 
 func loadInProgressFile(filePath string) (data []BucketAndFiles, err error) {
 	inProgressFile, err := os.Open(filePath)
-	defer inProgressFile.Close()
 	if err != nil {
 		err = errors.Annotatef(err, "Unable to open in progress file at %s", filePath)
 		return
 	}
+	defer inProgressFile.Close()
 	jsonParser := json.NewDecoder(inProgressFile)
 	err = jsonParser.Decode(&data)
 	return
@@ -406,4 +409,80 @@ func getRandomSampleFromPopulation(sampleSize, population int) []int {
 		i++
 	}
 	return sample
+}
+
+func downloadFile(ctx context.Context, bucket *storage.BucketHandle, remoteFilePath string, localFilePath string) (err error) {
+	obj := bucket.Object(remoteFilePath)
+	attrs, err := obj.Attrs(ctx)
+	if err != nil {
+		return errors.NotFoundf("Unable to find file in bucket at %s", remoteFilePath)
+	}
+
+	rc, err := obj.NewReader(ctx)
+	if err != nil {
+		return errors.NotFoundf("Unable to download file at %s", remoteFilePath)
+	}
+	defer rc.Close()
+
+	//prep file
+	localFile, err := os.Create(localFilePath)
+	if err != nil {
+		return errors.Annotatef(err, "Unable to open file %s for saving data from bucket.", localFilePath)
+	}
+	defer localFile.Close()
+
+	//prep progress bar
+	bar := pb.New(int(attrs.Size)).SetUnits(pb.U_BYTES)
+	bar.Start()
+	reader := bar.NewProxyReader(rc)
+	//download it
+
+	_, err = io.Copy(localFile, reader)
+	localFile.Close()
+	if err != nil {
+		return errors.Annotatef(err, "Error saving data to file %s", localFilePath)
+	}
+
+	return verifyDownloadedFile(attrs, localFilePath)
+}
+
+func verifyDownloadedFile(objAttrs *storage.ObjectAttrs, filePath string) (err error) {
+	fileInfo, err := os.Stat(filePath)
+	//compare expected size vs actual
+	if objAttrs.Size != fileInfo.Size() {
+		return errors.NotValidf("Size mismatch, expected %d found %d", objAttrs.Size, fileInfo.Size())
+	}
+
+	//compare CRC32C expected vs actual
+
+	localCRC, err := getCrc32CFromFile(filePath)
+	remoteCRC := objAttrs.CRC32C
+	if remoteCRC != localCRC {
+		return errors.NotValidf("Bad CRC, expected %d found %d", remoteCRC, localCRC)
+	}
+
+	return
+}
+
+//getCrc32CFromFile calculates theCRC32 checksum of the file's contents using the Castagnoli93 polynomial
+func getCrc32CFromFile(filePath string) (crc uint32, err error) {
+	//from http://mrwaggel.be/post/generate-crc32-hash-of-a-file-in-golang-turorial/
+	file, err := os.Open(filePath)
+	if err != nil {
+		err = errors.Annotatef(err, "Unable to open file %s to calculate CRC32C")
+		return
+	}
+	defer file.Close()
+
+	tablePolynomial := crc32.MakeTable(crc32.Castagnoli)
+	hash := crc32.New(tablePolynomial)
+
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		err = errors.Annotatef(err, "Unable to hash file %s to calculate CRC32C")
+		return
+	}
+
+	crc = hash.Sum32()
+	return
 }

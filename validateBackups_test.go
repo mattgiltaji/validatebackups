@@ -361,7 +361,7 @@ func TestSaveInProgressFile(t *testing.T) {
 
 	err = saveInProgressFile(tempFileName, data)
 	equal, err := cmp.CompareFile(expectedFileName, tempFileName)
-	is.NoError(err, "Should not error when saving good data to good filepath.")
+	is.NoError(err, "Should not error when saving good data to good file path.")
 	is.True(equal, "Saved file contents should match expected.")
 }
 
@@ -394,7 +394,7 @@ func TestLoadInProgressFile(t *testing.T) {
 	is.Error(err, "Should error when loading a file that doesn't exist")
 
 	actual, err := loadInProgressFile(testFilePath)
-	is.NoError(err, "Should not error when loading good data from good filepath.")
+	is.NoError(err, "Should not error when loading good data from good file path.")
 	is.Equal(expected, actual, "Loaded file contents should match expected.")
 }
 
@@ -757,4 +757,50 @@ func TestGetRandomSampleFromPopulation(t *testing.T) {
 	actual = getRandomSampleFromPopulation(-1, 10)
 	is.Nil(actual, "Should return nil when requesting negative sample size")
 
+}
+
+func TestVerifyDownloadedFile(t *testing.T) {
+	is := assert.New(t)
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Error("Could not determine current directory")
+	}
+	ctx := context.Background()
+	testClient := getTestClient(ctx, t)
+
+	sameContentsTestFile := filepath.Join(workingDir, "testdata", "newest.txt")
+	diffSizeTestFile := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
+	sameSizeDiffContentsTestFile := filepath.Join(workingDir, "testdata", "badServerBackup.txt")
+
+	testObj, err := testClient.Bucket("test-matt-server-backups").Object("newest.txt").Attrs(ctx)
+	if err != nil {
+		t.Error("Could not load remote test file")
+	}
+
+	err = verifyDownloadedFile(testObj, sameContentsTestFile)
+	is.NoError(err, "Should verify that same contents mean same file")
+
+	err = verifyDownloadedFile(testObj, diffSizeTestFile)
+	is.Error(err, "Should verify that different sizes mean different file")
+
+	err = verifyDownloadedFile(testObj, sameSizeDiffContentsTestFile)
+	is.Error(err, "Should verify that different contents mean different file")
+}
+
+func TestGetCrc32CFromFile(t *testing.T) {
+	is := assert.New(t)
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Error("Could not determine current directory")
+	}
+
+	testFile := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
+	missingFile := filepath.Join(workingDir, "testdata", "does_not_exist.jpeg")
+	expected := uint32(0x26512888)
+	actual, err := getCrc32CFromFile(testFile)
+	is.NoError(err, "Should not error when calculating CRC for a file")
+	is.Equal(expected, actual, "Calculated CRC should match expected")
+
+	_, err = getCrc32CFromFile(missingFile)
+	is.Error(err, "Should error when calculating CRC for a file that doesn't exist")
 }
