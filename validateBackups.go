@@ -154,10 +154,13 @@ func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketH
 }
 
 func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, filesToDownload []string, config Config) (err error) {
-
+	bucketName, err := getBucketName(ctx, bucket)
+	if err != nil {
+		err = errors.Annotate(err, "Unabled to load bucket name for determining destination directory.")
+	}
 	totalFiles := len(filesToDownload)
 	for i, remoteFile := range filesToDownload {
-		localFile := filepath.Join(config.FileDownloadLocation, remoteFile)
+		localFile := filepath.Join(config.FileDownloadLocation, bucketName, remoteFile)
 		retryCount := 0
 		fmt.Println(fmt.Sprintf("Downloading %d of %d, %s", i+1, totalFiles, remoteFile))
 		for {
