@@ -366,7 +366,7 @@ func TestSaveInProgressFile(t *testing.T) {
 	is.Error(err, "Should error when saving to a blank path")
 
 	err = saveInProgressFile(tempFileName, data)
-	equal, err := cmp.CompareFile(expectedFileName, tempFileName)
+	equal, _ := cmp.CompareFile(expectedFileName, tempFileName)
 	is.NoError(err, "Should not error when saving good data to good file path.")
 	is.True(equal, "Saved file contents should match expected.")
 }
@@ -861,12 +861,12 @@ func TestDownloadFile(t *testing.T) {
 	is.Error(err, "Should error when downloading to a bad path.")
 
 	err = downloadFile(ctx, goodBucket, "2014-11/IMG_09.gif", tempFileName)
-	equal, err := cmp.CompareFile(expectedFileName, tempFileName)
+	equal, _ := cmp.CompareFile(expectedFileName, tempFileName)
 	is.NoError(err, "Should not error when downloading a good file.")
 	is.True(equal, "Saved file contents should match expected.")
 
 	existingFileErr := downloadFile(ctx, goodBucket, "2014-11/IMG_09.gif", tempFileName)
-	equal, err = cmp.CompareFile(expectedFileName, tempFileName)
+	equal, _ = cmp.CompareFile(expectedFileName, tempFileName)
 	is.Error(existingFileErr, "Should error when file already exists and matches contents.")
 	is.True(errors.IsAlreadyExists(existingFileErr), "Should send already exists error when file already exists and matches contents.")
 	is.True(equal, "Saved file contents should match expected.")
