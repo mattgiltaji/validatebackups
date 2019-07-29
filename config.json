@@ -18,9 +18,6 @@
   }, {
     "name": "giltaji-photos",
     "type": "photo"
-  }, {
-    "name": "matt-server-backups",
-    "type": "server-backup"
   }
   ]
 }
