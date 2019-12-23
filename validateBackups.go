@@ -413,8 +413,8 @@ func getRandomFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle,
 
 	//put them into a massive slice
 	var objects []*storage.ObjectAttrs
+	bannedNameRegex := regexp.MustCompile(".*[aA][aA][eE]")
 	for {
-		//TODO: filter out aae files
 		//TODO: use ctx to cancel this mid-process if requested?
 		objAttrs, err2 := it.Next()
 		if err2 == iterator.Done {
@@ -423,6 +423,9 @@ func getRandomFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle,
 		if err2 != nil {
 			err = errors.Annotate(err2, "Unable to get random sample from bucket")
 			return
+		}
+		if bannedNameRegex.MatchString(objAttrs.Name) {
+			continue
 		}
 		objects = append(objects, objAttrs)
 	}
