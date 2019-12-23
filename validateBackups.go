@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -159,8 +160,18 @@ func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, 
 		err = errors.Annotate(err, "Unabled to load bucket name for determining destination directory.")
 	}
 	totalFiles := len(filesToDownload)
+	photoFileNameRegex, _ := regexp.Compile("([0-9][0-9][0-9][0-9])-[0-9][0-9]/(.*)")
 	for i, remoteFile := range filesToDownload {
-		localFile := filepath.Join(config.FileDownloadLocation, bucketName, remoteFile)
+
+		var localFile string
+		//for photos downloads, put them locally in yyyy, not in yyyy-mm
+		if photoFileNameRegex.MatchString(remoteFile) {
+			localFileParts := photoFileNameRegex.FindStringSubmatch(remoteFile)
+			localFile = filepath.Join(config.FileDownloadLocation, bucketName, localFileParts[1], localFileParts[2])
+		} else {
+			localFile = filepath.Join(config.FileDownloadLocation, bucketName, remoteFile)
+		}
+
 		retryCount := 0
 		fmt.Println(fmt.Sprintf("Downloading %d of %d, %s", i+1, totalFiles, remoteFile))
 		for {
@@ -403,6 +414,7 @@ func getRandomFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle,
 	//put them into a massive slice
 	var objects []*storage.ObjectAttrs
 	for {
+		//TODO: filter out aae files
 		//TODO: use ctx to cancel this mid-process if requested?
 		objAttrs, err2 := it.Next()
 		if err2 == iterator.Done {
