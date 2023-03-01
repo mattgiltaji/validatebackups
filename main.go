@@ -13,7 +13,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-//separated out to exclude from coverage calculations as it's not testable
+// separated out to exclude from coverage calculations as it's not testable
 func main() {
 	configPath := flag.String("config",
 		`D:\Matt\go\src\github.com\mattgiltaji\validatebackups\config.json`,
@@ -62,7 +62,8 @@ func main() {
 	logFatalIfErr(err, "Error while downloading files. Please rerun to try again.")
 
 	//everything successful, delete the in progress file.
-	os.Remove(inProgressFilePath)
+	err = os.Remove(inProgressFilePath)
+	logFatalIfErr(err, fmt.Sprintf("Unable to delete progress file. Delete %s manually.", inProgressFilePath))
 	return
 }
 

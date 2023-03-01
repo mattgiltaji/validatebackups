@@ -549,7 +549,7 @@ func verifyDownloadedFile(objAttrs *storage.ObjectAttrs, filePath string) (err e
 	return
 }
 
-//getCrc32CFromFile calculates theCRC32 checksum of the file's contents using the Castagnoli93 polynomial
+// getCrc32CFromFile calculates theCRC32 checksum of the file's contents using the Castagnoli93 polynomial
 func getCrc32CFromFile(filePath string) (crc uint32, err error) {
 	//from http://mrwaggel.be/post/generate-crc32-hash-of-a-file-in-golang-turorial/
 	file, err := os.Open(filePath)
