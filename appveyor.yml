@@ -1,29 +1,28 @@
 version: 0.0.{build}
-image: Visual Studio 2017
+image: Visual Studio 2019
 clone_folder: c:\gopath\src\github.com\mattgiltaji\validatebackups
 environment:
   GOPATH: c:\gopath
   secret_key:
     secure: YdUmnIWk1uCQalq497dt8DbeU7RZnlJ1sn3Zl0+wCUI=
 install:
-- ps: iex ((New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/appveyor/secure-file/master/install.ps1'))
-- cmd: >-
-    appveyor-tools\secure-file -decrypt c:\gopath\src\github.com\mattgiltaji\validatebackups\test-backup-validator-auth.json.appenc -secret %secret_key% -out c:\gopath\src\github.com\mattgiltaji\validatebackups\test-backup-validator-auth.json
+- ps: >-
+    iex ((New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/appveyor/secure-file/master/install.ps1'))
+    
+    appveyor-tools\secure-file -decrypt  "$Env:GOPATH\test-backup-validator-auth.json.appenc" -secret $Env:secret_key -out "$Env:GOPATH\test-backup-validator-auth.json"
 
-    echo %PATH%
-
-    echo %GOPATH%
-
-    set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
+    echo $Env:PATH
+    echo $Env:GOPATH
+  
+    $Env:PATH = "$Env:GOPATH\bin;$Env:PATH;C:\msys64\mingw64\bin"
 
     go version
-
     go env
 build_script:
 - cmd: >-
     go get -v -d ./...
 
-    go build -o buildOutput\validatebackups.exe -i .
+    go build -o buildOutput\validatebackups.exe .
 test_script:
 - cmd: >-
     go get -v -t -d ./...
