@@ -3,18 +3,20 @@ image: Visual Studio 2019
 clone_folder: c:\gopath\src\github.com\mattgiltaji\validatebackups
 environment:
   GOPATH: c:\gopath
-  secret_key:
-    secure: YdUmnIWk1uCQalq497dt8DbeU7RZnlJ1sn3Zl0+wCUI=
+  secret:
+    secure: 6J2Kd9IevRWOqfvo4DR7pz5kE3trvog/2cvdRs5nQfo=
+  salt:
+    secure: bwRXIHN3aEZrXP6CFWSUBzJWojnrQ2oYs1gGHfpjPWp9fraIkzBXWjHD4sFO8vhHh43m2cP2KBRN8K4EODKwbQ==
 install:
 - ps: >-
     iex ((New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/appveyor/secure-file/master/install.ps1'))
     
-    appveyor-tools\secure-file -decrypt  "$Env:GOPATH\test-backup-validator-auth.json.appenc" -secret $Env:secret_key -out "$Env:GOPATH\test-backup-validator-auth.json"
+    appveyor-tools\secure-file -decrypt  "$Env:GOPATH\test-backup-validator-auth.json.appenc" -secret $Env:secret -salt $Env:salt -out "$Env:GOPATH\test-backup-validator-auth.json"
 
     echo $Env:PATH
     echo $Env:GOPATH
   
-    $Env:PATH = "$Env:GOPATH\bin;$Env:PATH;C:\msys64\mingw64\bin"
+    $Env:PATH = "$Env:GOPATH\bin;$Env:PATH;C:\msys64\usr\bin"
 
     go version
     go env
