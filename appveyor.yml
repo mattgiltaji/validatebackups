@@ -11,7 +11,7 @@ install:
 - ps: >-
     iex ((New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/appveyor/secure-file/master/install.ps1'))
     
-    appveyor-tools\secure-file -decrypt  "$Env:GOPATH\test-backup-validator-auth.json.appenc" -secret $Env:secret -salt $Env:salt -out "$Env:GOPATH\test-backup-validator-auth.json"
+    appveyor-tools\secure-file -decrypt  "$Env:APPVEYOR_BUILD_FOLDER\test-backup-validator-auth.json.appenc" -secret $Env:secret -salt $Env:salt -out "$Env:APPVEYOR_BUILD_FOLDER\test-backup-validator-auth.json"
 
     echo $Env:PATH
     echo $Env:GOPATH
