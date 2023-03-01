@@ -16,7 +16,7 @@ install:
     echo $Env:PATH
     echo $Env:GOPATH
   
-    $Env:PATH = "$Env:GOPATH\bin;$Env:PATH;C:\msys64\usr\bin"
+    $Env:PATH = "$Env:GOPATH\bin;$Env:PATH"
 
     go version
     go env
