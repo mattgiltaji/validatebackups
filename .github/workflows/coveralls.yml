@@ -13,6 +13,10 @@ on:
 
 jobs:
   build:
+    # Add "id-token" with the intended permissions.
+    permissions:
+      contents: 'read'
+      id-token: 'write'
 
     runs-on: ubuntu-latest
     strategy:
