@@ -37,9 +37,9 @@ jobs:
       - name: Install dependencies
         run: go get .
       - name: Go Test
-        run: go test -coverprofile cp.out -json > TestResults-${{ matrix.go-version }}.json
+        run: go test -coverprofile cp.out
       - name: Upload Go test results
         uses: actions/upload-artifact@v3
         with:
-          name: Go-results-${{ matrix.go-version }}
-          path: TestResults-${{ matrix.go-version }}.json
+          name: cp.out
+          path: cp.out
