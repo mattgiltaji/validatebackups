@@ -15,3 +15,6 @@
 coverage.html
 test-backup-validator-auth.json
 downloadsInProgress.json
+
+# Ignore generated credentials from google-github-actions/auth
+gha-creds-*.json
