@@ -1,0 +1,40 @@
+# run tests and submit coverage data to coveralls
+name: "Coveralls"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ "main" ]
+  schedule:
+    - cron: '34 12 * * 5'
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.19', '1.20', '1.21.x' ]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Auth with Google Cloud
+        uses: google-github-actions/auth@v0.4.0
+        with:
+          workload_identity_provider: 'projects/160352889197/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'test-backup-validator@my-project.iam.gserviceaccount.com'
+      - name: Install dependencies
+        run: go get .
+      - name: Go Test
+        run: go test -coverprofile cp.out -json > TestResults-${{ matrix.go-version }}.json
+      - name: Upload Go test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: Go-results-${{ matrix.go-version }}
+          path: TestResults-${{ matrix.go-version }}.json
