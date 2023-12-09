@@ -33,7 +33,7 @@ jobs:
         uses: google-github-actions/auth@v0.4.0
         with:
           workload_identity_provider: 'projects/160352889197/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
-          service_account: 'test-backup-validator@my-project.iam.gserviceaccount.com'
+          service_account: 'test-backup-validator@triangular-praxis-169117.iam.gserviceaccount.com'
       - name: Install dependencies
         run: go get .
       - name: Go Test
