@@ -28,8 +28,12 @@ func main() {
 
 	//connect to gcs
 	ctx := context.Background()
-	client, err := storage.NewClient(ctx, option.WithCredentialsFile(config.GoogleAuthFileLocation))
-	logFatalIfErr(err, "Unable to connect to google cloud storage.")
+	//try ADC first
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		client, err = storage.NewClient(ctx, option.WithCredentialsFile(config.GoogleAuthFileLocation))
+		logFatalIfErr(err, "Unable to connect to google cloud storage.")
+	}
 
 	fmt.Println("Validating buckets.")
 	success, err := validateBucketsInConfig(ctx, client, config)

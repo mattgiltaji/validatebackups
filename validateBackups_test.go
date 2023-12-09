@@ -21,6 +21,11 @@ import (
 // ***** Helpers *****
 func getTestClient(ctx context.Context, t *testing.T) (client *storage.Client) {
 	var err error
+	// try ADC first
+	client, err = storage.NewClient(ctx)
+	if err == nil {
+		return
+	}
 	googleAuthFileName := "test-backup-validator-auth.json"
 	workingDir, err := os.Getwd()
 	if err != nil {
@@ -29,6 +34,7 @@ func getTestClient(ctx context.Context, t *testing.T) (client *storage.Client) {
 	googleAuthFileLocation := filepath.Join(workingDir, googleAuthFileName)
 	client, err = storage.NewClient(ctx, option.WithCredentialsFile(googleAuthFileLocation))
 	if err != nil {
+
 		t.Error("Could not connect to test storage instance")
 	}
 	return
