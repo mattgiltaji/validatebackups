@@ -19,10 +19,18 @@ import (
 )
 
 func loadConfigurationFromFile(filePath string) (config Config, err error) {
-	configFile, err := os.Open(filePath)
-	defer configFile.Close()
-	if err != nil {
-		err = errors.Annotatef(err, "Unable to open config file at %s", filePath)
+	configFile, openErr := os.Open(filePath)
+	defer func() {
+		closeErr := configFile.Close()
+		if closeErr != nil {
+			// only overwrite err if the rest of the function didn't err
+			if err == nil {
+				err = fmt.Errorf("unable to close config file at %s: %v", filePath, closeErr)
+			}
+		}
+	}()
+	if openErr != nil {
+		err = fmt.Errorf("unable to open config file at %s: %v", filePath, openErr)
 		return
 	}
 	jsonParser := json.NewDecoder(configFile)
