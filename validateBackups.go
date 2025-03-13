@@ -280,7 +280,7 @@ func getServerBackupsToDownload(ctx context.Context, bucket *storage.BucketHandl
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
 		objAttrs, err2 := it.Next()
-		if err2 == iterator.Done {
+		if errors.Is(err2, iterator.Done) {
 			break
 		}
 		if err2 != nil {
@@ -330,7 +330,7 @@ func getBucketTopLevelDirs(ctx context.Context, bucket *storage.BucketHandle) (d
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
 		objAttrs, err2 := it.Next()
-		if err2 == iterator.Done {
+		if errors.Is(err2, iterator.Done) {
 			break
 		}
 		if err2 != nil {
@@ -356,7 +356,7 @@ func getNewestObjectFromBucket(ctx context.Context, bucket *storage.BucketHandle
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
 		objAttrs, err2 := it.Next()
-		if err2 == iterator.Done {
+		if errors.Is(err2, iterator.Done) {
 			break
 		}
 		if err2 != nil {
@@ -375,7 +375,7 @@ func getOldestObjectFromBucket(ctx context.Context, bucket *storage.BucketHandle
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
 		objAttrs, err2 := it.Next()
-		if err2 == iterator.Done {
+		if errors.Is(err2, iterator.Done) {
 			break
 		}
 		if err2 != nil {
@@ -417,7 +417,7 @@ func getRandomFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle,
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
 		objAttrs, err2 := it.Next()
-		if err2 == iterator.Done {
+		if errors.Is(err2, iterator.Done) {
 			break
 		}
 		if err2 != nil {
