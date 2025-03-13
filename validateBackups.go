@@ -157,7 +157,7 @@ func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketH
 func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, filesToDownload []string, config Config) (err error) {
 	bucketName, err := getBucketName(ctx, bucket)
 	if err != nil {
-		err = errors.Annotate(err, "Unabled to load bucket name for determining destination directory.")
+		err = errors.Annotate(err, "Unable to load bucket name for determining destination directory.")
 	}
 	totalFiles := len(filesToDownload)
 	photoFileNameRegex, _ := regexp.Compile("([0-9][0-9][0-9][0-9])-[0-9][0-9]/(.*)")
@@ -180,12 +180,12 @@ func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, 
 				//download successful!
 				break
 			}
-			if errors.IsAlreadyExists(err2) {
+			if errors.Is(err2, errors.AlreadyExists) {
 				//download successful!
 				fmt.Println("Skipping already downloaded file.")
 				break
 			}
-			if errors.IsNotFound(err2) {
+			if errors.Is(err2, errors.NotFound) {
 				//no sense retrying if we can't find the file
 				err = errors.Annotatef(err2, "Could not find %s to download it", remoteFile)
 				return

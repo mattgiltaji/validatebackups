@@ -5,9 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
-	"time"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/option"
@@ -45,8 +43,7 @@ func main() {
 	//now see if we have files to download already
 	_, err = os.Stat(inProgressFilePath)
 	if os.IsNotExist(err) {
-		fmt.Println("No in progress file found, determining random files to download.")
-		rand.Seed(time.Now().UTC().UnixNano())
+		fmt.Println(`No in progress file found, determining random files to download.`)
 		//we don't have any in progress files, so make it
 		bucketToFilesMapping, err := getObjectsToDownloadFromBucketsInConfig(ctx, client, config)
 		logFatalIfErr(err, "Unable to get objects to download from all buckets.")
