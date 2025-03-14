@@ -34,15 +34,16 @@ func getTestClient(ctx context.Context, t *testing.T) (client *storage.Client) {
 	} else {
 		workingDir, err := os.Getwd()
 		if err != nil {
-			t.Error("Could not determine current directory to load test auth file")
+			err = fmt.Errorf("unable to determine current directory to load test auth file: %w", err)
+			t.Fatalf("%v", err)
 		}
 		googleAuthFileLocation = filepath.Join(workingDir, googleAuthFileName)
 	}
 
 	client, err = storage.NewClient(ctx, option.WithCredentialsFile(googleAuthFileLocation))
 	if err != nil {
-
-		t.Error("Could not connect to test storage instance")
+		err = fmt.Errorf("unable to connect to test storage instance: %w", err)
+		t.Fatalf("%v", err)
 	}
 	return
 }
@@ -288,15 +289,15 @@ func TestValidateBucketsInConfig(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 
-	actual, err := validateBucketsInConfig(ctx, testClient, config)
-	is.NoError(err, "Should not error when validating good bucket types")
-	is.True(actual, "Should return true when validations are successful")
+	goodBucketActual, goodBucketErr := validateBucketsInConfig(ctx, testClient, config)
+	is.NoError(goodBucketErr, "Should not error when validating good bucket types")
+	is.True(goodBucketActual, "Should return true when validations are successful")
 
 	missingBucketName := "does-not-exist"
 	config.Buckets = []BucketToProcess{{Name: missingBucketName, Type: "media"}}
-	actual, missingBucketErr := validateBucketsInConfig(ctx, testClient, config)
+	missingBucketActual, missingBucketErr := validateBucketsInConfig(ctx, testClient, config)
 	is.Error(missingBucketErr, "Should error when config has a bucket that doesn't exist")
-	is.False(actual, "Should return false if there is an error during validation")
+	is.False(missingBucketActual, "Should return false if there is an error during validation")
 
 }
 
