@@ -34,6 +34,7 @@ jobs:
         with:
           workload_identity_provider: 'projects/160352889197/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
           service_account: 'test-backup-validator@triangular-praxis-169117.iam.gserviceaccount.com'
+          project_id: 'triangular-praxis-169117'
       - name: Install dependencies
         run: go get .
       - name: Go Test

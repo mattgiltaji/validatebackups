@@ -271,12 +271,14 @@ func TestValidateBucketsInConfig(t *testing.T) {
 	backupBucket := testClient.Bucket("test-matt-server-backups-fresh")
 	err := uploadFreshServerBackupFile(ctx, backupBucket)
 	if err != nil {
-		t.Error("Could not prep test case for validating server backup bucket.")
+		err = fmt.Errorf("unable to prep test case for validating server backup bucket: %w", err)
+		t.Fatalf("%v", err)
 	}
 	photosBucket := testClient.Bucket("test-matt-photos")
 	err = uploadThisMonthPhotos(ctx, photosBucket)
 	if err != nil {
-		t.Error("Could not prep test case for validating photos bucket.")
+		err = fmt.Errorf("unable to prep test case for validating photos bucket: %w", err)
+		t.Fatalf("%v", err)
 	}
 
 	actual, err := validateBucketsInConfig(ctx, testClient, config)
