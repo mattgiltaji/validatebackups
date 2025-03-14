@@ -23,9 +23,9 @@ func getTestClient(ctx context.Context, t *testing.T) (client *storage.Client, e
 	// try app default credentials first
 	client, err = storage.NewClient(ctx)
 	if err == nil {
-		serviceAccount, err := client.ServiceAccount(ctx, "triangular-praxis-169117")
-		if err != nil {
-			err = fmt.Errorf("unable to determine service account with ADC: %w", err)
+		serviceAccount, err2 := client.ServiceAccount(ctx, "triangular-praxis-169117")
+		if err2 != nil {
+			err = fmt.Errorf("unable to determine service account with ADC: %w", err2)
 		} else {
 			t.Logf("created client with ADC for service account: %v", serviceAccount)
 		}
