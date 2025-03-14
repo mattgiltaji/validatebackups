@@ -5,7 +5,6 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -349,11 +348,11 @@ func TestSaveInProgressFile(t *testing.T) {
 	}
 	expectedFileName := filepath.Join(workingDir, "testdata", "inProgressData.json")
 
-	tempDir, err := ioutil.TempDir("", "TestSaveInProgressFile")
+	tempDir, err := os.MkdirTemp("", "TestSaveInProgressFile")
 	if err != nil {
 		t.Error("Could not create temporary directory")
 	}
-	tempF, err := ioutil.TempFile(tempDir, "")
+	tempF, err := os.CreateTemp(tempDir, "")
 	if err != nil {
 		t.Error("Could not create temporary file")
 	}
@@ -428,7 +427,7 @@ func TestDownloadFilesFromBucketAndFiles(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
 	testClient := getTestClient(ctx, t)
-	tempDir, err := ioutil.TempDir("", "TestDownloadFilesFromBucketAndFiles")
+	tempDir, err := os.MkdirTemp("", "TestDownloadFilesFromBucketAndFiles")
 	if err != nil {
 		t.Error("Could not create temporary directory")
 	}
@@ -561,7 +560,7 @@ func TestDownloadFilesFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
 	testClient := getTestClient(ctx, t)
-	tempDir, err := ioutil.TempDir("", "TestDownloadFilesFromBucket")
+	tempDir, err := os.MkdirTemp("", "TestDownloadFilesFromBucket")
 	if err != nil {
 		t.Error("Could not create temporary directory")
 	}
@@ -875,11 +874,11 @@ func TestDownloadFile(t *testing.T) {
 	}
 	ctx := context.Background()
 	testClient := getTestClient(ctx, t)
-	tempDir, err := ioutil.TempDir("", "TestDownloadFile")
+	tempDir, err := os.MkdirTemp("", "TestDownloadFile")
 	if err != nil {
 		t.Error("Could not create temporary directory")
 	}
-	tempF, err := ioutil.TempFile(tempDir, "")
+	tempF, err := os.CreateTemp(tempDir, "")
 	if err != nil {
 		t.Error("Could not create temporary file")
 	}
