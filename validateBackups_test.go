@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -45,17 +46,20 @@ func deleteExistingObjectsFromBucket(ctx context.Context, bucket *storage.Bucket
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
 		objAttrs, err2 := it.Next()
-		if err2 == iterator.Done {
+		if errors.Is(err2, iterator.Done) {
 			break
 		}
 		if err2 != nil || objAttrs == nil {
-			return errors.Annotate(err2, "Unable to get object from bucket to delete it.")
+			return fmt.Errorf("unable to get object from bucket to delete it: %w", err2)
 		}
 		object := bucket.Object(objAttrs.Name)
 		if object == nil {
-			return errors.Annotate(err2, "Unable to get object handle from bucket to delete it.")
+			return fmt.Errorf("unable to get object handle from bucket to delete it: %w", err2)
 		}
-		object.Delete(ctx)
+		err = object.Delete(ctx)
+		if err != nil {
+			return fmt.Errorf("unable to delete object: %w", err)
+		}
 	}
 	return
 }
@@ -65,11 +69,11 @@ func uploadFreshServerBackupFile(ctx context.Context, bucket *storage.BucketHand
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
 		objAttrs, err2 := currFiles.Next()
-		if err2 == iterator.Done {
+		if errors.Is(err2, iterator.Done) {
 			break
 		}
 		if err2 != nil {
-			err = errors.Annotate(err2, "Unable to get existing photos when preparing photos bucket")
+			err = fmt.Errorf("unable to get existing photos when preparing photos bucket: %w", err2)
 			return
 		}
 		objAge := time.Since(objAttrs.Created)
@@ -83,16 +87,16 @@ func uploadFreshServerBackupFile(ctx context.Context, bucket *storage.BucketHand
 
 	err = deleteExistingObjectsFromBucket(ctx, bucket)
 	if err != nil {
-		return errors.Annotate(err, "Unable to delete existing files when preparing backup bucket")
+		return fmt.Errorf("unable to delete existing files when preparing backup bucket: %w", err)
 	}
 	workingDir, err := os.Getwd()
 	if err != nil {
-		return errors.Annotate(err, "Could not determine current directory to prepare backup bucket")
+		return fmt.Errorf("could not determine current directory to prepare backup bucket: %w", err)
 	}
 	filePath := filepath.Join(workingDir, "testdata", "newest.txt")
 	err = uploadFileToBucket(ctx, bucket, filePath, "newest.txt")
 	if err != nil {
-		return errors.Annotate(err, "Unable to upload file when preparing backup bucket")
+		return fmt.Errorf("unable to upload file when preparing backup bucket: %w", err)
 	}
 	return
 }
@@ -102,7 +106,7 @@ func uploadThisMonthPhotos(ctx context.Context, bucket *storage.BucketHandle) (e
 
 	workingDir, err := os.Getwd()
 	if err != nil {
-		return errors.Annotate(err, "Could not determine current directory to prepare photos bucket")
+		return fmt.Errorf("could not determine current directory to prepare photos bucket: %w", err)
 	}
 	filePath := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
 	baseUploadPath := fmt.Sprintf("%d-%02d", time.Now().Year(), time.Now().Month())
@@ -111,11 +115,11 @@ func uploadThisMonthPhotos(ctx context.Context, bucket *storage.BucketHandle) (e
 	for {
 		//TODO: use ctx to cancel this mid-process if requested?
 		_, err2 := currFiles.Next()
-		if err2 == iterator.Done {
+		if errors.Is(err2, iterator.Done) {
 			break
 		}
 		if err2 != nil {
-			err = errors.Annotate(err2, "Unable to get existing photos when preparing photos bucket")
+			err = fmt.Errorf("unable to get existing photos when preparing photos bucket: %w", err2)
 			return
 		}
 		numFiles++
@@ -128,7 +132,7 @@ func uploadThisMonthPhotos(ctx context.Context, bucket *storage.BucketHandle) (e
 		uploadPath := fmt.Sprintf("%s/IMG_%02d.gif", baseUploadPath, i)
 		err = uploadFileToBucket(ctx, bucket, filePath, uploadPath)
 		if err != nil {
-			return errors.Annotate(err, "Unable to upload file when preparing photos bucket")
+			return fmt.Errorf("unable to upload file when preparing photos bucket: %w", err)
 		}
 	}
 	//wait until they are uploaded successfully (if we had to upload them
@@ -138,19 +142,24 @@ func uploadThisMonthPhotos(ctx context.Context, bucket *storage.BucketHandle) (e
 
 func uploadFileToBucket(ctx context.Context, bucket *storage.BucketHandle, filePath string, uploadPath string) (err error) {
 	f, err := os.Open(filePath)
+	defer func() {
+		closeErr := f.Close()
+		if closeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to close file at %s: %w", filePath, closeErr))
+		}
+	}()
 	if err != nil {
-		return errors.Annotate(err, "Unable to open local file to upload it.")
+		return fmt.Errorf("unable to open local file to upload it: %w", err)
 	}
-	defer f.Close()
 
 	wc := bucket.Object(uploadPath).NewWriter(ctx)
 	_, err = io.Copy(wc, f)
 	if err != nil {
-		return errors.Annotate(err, "Unable to open upload local file. Error in copying.")
+		return fmt.Errorf("unable to open upload local file. Error in copying: %w", err)
 	}
 	err = wc.Close()
 	if err != nil {
-		return errors.Annotate(err, "Unable to close remote file after upload.")
+		return fmt.Errorf("unable to close remote file after upload: %w", err)
 	}
 	return
 }
@@ -349,7 +358,12 @@ func TestSaveInProgressFile(t *testing.T) {
 		t.Error("Could not create temporary file")
 	}
 	tempFileName := tempF.Name()
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		removeErr := os.RemoveAll(tempDir)
+		if removeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to remove temp dir at %s: %w", tempDir, removeErr))
+		}
+	}()
 
 	data := []BucketAndFiles{
 		{"test-matt-media", []string{
@@ -418,7 +432,12 @@ func TestDownloadFilesFromBucketAndFiles(t *testing.T) {
 	if err != nil {
 		t.Error("Could not create temporary directory")
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		removeErr := os.RemoveAll(tempDir)
+		if removeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to remove temp dir at %s: %w", tempDir, removeErr))
+		}
+	}()
 
 	config := Config{
 		FileDownloadLocation: tempDir,
@@ -546,7 +565,12 @@ func TestDownloadFilesFromBucket(t *testing.T) {
 	if err != nil {
 		t.Error("Could not create temporary directory")
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		removeErr := os.RemoveAll(tempDir)
+		if removeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to remove temp dir at %s: %w", tempDir, removeErr))
+		}
+	}()
 
 	config := Config{
 		FileDownloadLocation: tempDir,
@@ -860,7 +884,12 @@ func TestDownloadFile(t *testing.T) {
 		t.Error("Could not create temporary file")
 	}
 	tempFileName := tempF.Name()
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		removeErr := os.RemoveAll(tempDir)
+		if removeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to remove temp dir at %s: %w", tempDir, removeErr))
+		}
+	}()
 
 	expectedFileName := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
 	goodBucket := testClient.Bucket("test-matt-photos")
@@ -880,7 +909,7 @@ func TestDownloadFile(t *testing.T) {
 	existingFileErr := downloadFile(ctx, goodBucket, "2014-11/IMG_09.gif", tempFileName)
 	equal, _ = cmp.CompareFile(expectedFileName, tempFileName)
 	is.Error(existingFileErr, "Should error when file already exists and matches contents.")
-	is.True(errors.IsAlreadyExists(existingFileErr), "Should send already exists error when file already exists and matches contents.")
+	is.True(errors.Is(existingFileErr, errors.AlreadyExists), "Should send already exists error when file already exists and matches contents.")
 	is.True(equal, "Saved file contents should match expected.")
 }
 
@@ -904,22 +933,22 @@ func TestVerifyDownloadedFile(t *testing.T) {
 
 	err = verifyDownloadedFile(nil, diffSizeTestFile)
 	is.Error(err, "Should error but not panic when passed a bad objAttrs")
-	is.True(errors.IsNotValid(err), "Should return NotValid error when passed a bad objAttrs")
+	is.True(errors.Is(err, errors.NotValid), "Should return NotValid error when passed a bad objAttrs")
 
 	err = verifyDownloadedFile(testObj, "/does/not/exist")
 	is.Error(err, "Should error but not panic when passed a bad file path")
-	is.True(errors.IsNotFound(err), "Should return NotFound error when passed a bad file path")
+	is.True(errors.Is(err, errors.NotFound), "Should return NotFound error when passed a bad file path")
 
 	err = verifyDownloadedFile(testObj, sameContentsTestFile)
 	is.NoError(err, "Should verify that same contents mean same file")
 
 	err = verifyDownloadedFile(testObj, diffSizeTestFile)
 	is.Error(err, "Should verify that different sizes mean different file")
-	is.True(errors.IsNotValid(err), "Should return NotValid error when file has a different size")
+	is.True(errors.Is(err, errors.NotValid), "Should return NotValid error when file has a different size")
 
 	err = verifyDownloadedFile(testObj, sameSizeDiffContentsTestFile)
 	is.Error(err, "Should verify that different contents mean different file")
-	is.True(errors.IsNotValid(err), "Should return NotValid error when file has different contents")
+	is.True(errors.Is(err, errors.NotValid), "Should return NotValid error when file has different contents")
 }
 
 func TestGetCrc32CFromFile(t *testing.T) {

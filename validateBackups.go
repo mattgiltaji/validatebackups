@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"hash/crc32"
 	"io"
@@ -23,10 +24,7 @@ func loadConfigurationFromFile(filePath string) (config Config, err error) {
 	defer func() {
 		closeErr := configFile.Close()
 		if closeErr != nil {
-			// only overwrite err if the rest of the function didn't err
-			if err == nil {
-				err = fmt.Errorf("unable to close config file at %s: %v", filePath, closeErr)
-			}
+			err = stderrors.Join(err, fmt.Errorf("unable to close config file at %s: %w", filePath, closeErr))
 		}
 	}()
 	if openErr != nil {
@@ -47,7 +45,7 @@ func validateBucketsInConfig(ctx context.Context, client *storage.Client, config
 		err = validateBucket(ctx, bucket, config)
 		//TODO: have this function return success/failure so we only stop processing on an error and not just a failed validation
 		if err != nil {
-			return false, errors.Annotatef(err, "Unable to validate bucket %s", bucketConfig.Name)
+			return false, fmt.Errorf("unable to validate bucket %s: %w", bucketConfig.Name, err)
 		}
 	}
 	return true, nil
@@ -61,32 +59,42 @@ func getObjectsToDownloadFromBucketsInConfig(ctx context.Context, client *storag
 		fmt.Println(fmt.Sprintf("Getting files to download from bucket %d of %d, %s", i+1, totalBuckets, bucketConfig.Name))
 		files, err := getObjectsToDownloadFromBucket(ctx, bucket, config)
 		if err != nil {
-			return nil, errors.Annotatef(err, "Could not get objects to download from bucket %s", bucketConfig.Name)
+			return nil, fmt.Errorf("could not get objects to download from bucket %s: %w", bucketConfig.Name, err)
 		}
 		bucketToFilesMapping[i] = BucketAndFiles{BucketName: bucketConfig.Name, Files: files}
 	}
 	return bucketToFilesMapping, nil
 }
 
-func saveInProgressFile(filePath string, data []BucketAndFiles) error {
-	jsonFile, err := os.Create(filePath)
-	if err != nil {
-		return errors.Annotatef(err, "Unable to open downloadsInProgress file %s for saving data.", filePath)
+func saveInProgressFile(filePath string, data []BucketAndFiles) (err error) {
+	jsonFile, createErr := os.Create(filePath)
+	defer func() {
+		closeErr := jsonFile.Close()
+		if closeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to close in progress file at %s: %w", filePath, closeErr))
+		}
+	}()
+	if createErr != nil {
+		err = fmt.Errorf("unable to open downloadsInProgress file %s for saving data: %w", filePath, createErr)
 	}
-	defer jsonFile.Close()
 
 	jsonEncoder := json.NewEncoder(jsonFile)
 	err = jsonEncoder.Encode(data)
-	return err
+	return
 }
 
 func loadInProgressFile(filePath string) (data []BucketAndFiles, err error) {
-	inProgressFile, err := os.Open(filePath)
-	if err != nil {
-		err = errors.Annotatef(err, "Unable to open in progress file at %s", filePath)
+	inProgressFile, openErr := os.Open(filePath)
+	defer func() {
+		closeErr := inProgressFile.Close()
+		if closeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to close in progress file at %s: %w", filePath, closeErr))
+		}
+	}()
+	if openErr != nil {
+		err = fmt.Errorf("unable to open in progress file at %s: %w", filePath, openErr)
 		return
 	}
-	defer inProgressFile.Close()
 	jsonParser := json.NewDecoder(inProgressFile)
 	err = jsonParser.Decode(&data)
 	return
@@ -99,7 +107,7 @@ func downloadFilesFromBucketAndFiles(ctx context.Context, client *storage.Client
 		fmt.Println(fmt.Sprintf("Downloading files in bucket %d of %d, %s", i+1, totalBuckets, bucketAndFiles.BucketName))
 		err := downloadFilesFromBucket(ctx, bucket, bucketAndFiles.Files, config)
 		if err != nil {
-			return errors.Annotatef(err, "Error while downloading files for bucket %s", bucketAndFiles.BucketName)
+			return fmt.Errorf("error while downloading files for bucket %s: %w", bucketAndFiles.BucketName, err)
 		}
 	}
 	return
@@ -109,7 +117,7 @@ func validateBucket(ctx context.Context, bucket *storage.BucketHandle, config Co
 	//match bucket with appropriate validator from config
 	bucketName, err := getBucketName(ctx, bucket)
 	if err != nil {
-		err = errors.Annotate(err, "Unable to determine bucket name when validating.")
+		err = fmt.Errorf("unable to determine bucket name when validating: %w", err)
 		return
 	}
 	validationType, err := getBucketValidationTypeFromNameAndConfig(bucketName, config.Buckets)
@@ -119,7 +127,7 @@ func validateBucket(ctx context.Context, bucket *storage.BucketHandle, config Co
 	case "server-backup":
 		err = validateServerBackups(ctx, bucket, config.ServerBackupRules)
 		if err != nil {
-			err = errors.Annotatef(err, "Error validating bucket %s as type %s", bucketName, validationType)
+			err = fmt.Errorf("error validating bucket %s as type %s: %w", bucketName, validationType, err)
 			return
 		}
 	default:
@@ -132,7 +140,7 @@ func validateBucket(ctx context.Context, bucket *storage.BucketHandle, config Co
 func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketHandle, config Config) (objects []string, err error) {
 	bucketName, err := getBucketName(ctx, bucket)
 	if err != nil {
-		err = errors.Annotate(err, "Unable to determine bucket name when validating.")
+		err = fmt.Errorf("unable to determine bucket name when validating: %w", err)
 		return
 	}
 	validationType, err := getBucketValidationTypeFromNameAndConfig(bucketName, config.Buckets)
@@ -140,19 +148,19 @@ func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketH
 	case "media":
 		objects, err = getMediaFilesToDownload(ctx, bucket, config.FilesToDownload)
 		if err != nil {
-			err = errors.Annotatef(err, "Error getting list of media files to download from %s", bucketName)
+			err = fmt.Errorf("error getting list of media files to download from %s: %w", bucketName, err)
 			return
 		}
 	case "photo":
 		objects, err = getPhotosToDownload(ctx, bucket, config.FilesToDownload)
 		if err != nil {
-			err = errors.Annotatef(err, "Error getting list of photos to download from %s", bucketName)
+			err = fmt.Errorf("error getting list of photos to download from %s: %w", bucketName, err)
 			return
 		}
 	case "server-backup":
 		objects, err = getServerBackupsToDownload(ctx, bucket, config.FilesToDownload)
 		if err != nil {
-			err = errors.Annotatef(err, "Error getting list of server backups to download from %s", bucketName)
+			err = fmt.Errorf("error getting list of server backups to download from %s: %v", bucketName, err)
 			return
 		}
 	default:
@@ -165,7 +173,7 @@ func getObjectsToDownloadFromBucket(ctx context.Context, bucket *storage.BucketH
 func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, filesToDownload []string, config Config) (err error) {
 	bucketName, err := getBucketName(ctx, bucket)
 	if err != nil {
-		err = errors.Annotate(err, "Unable to load bucket name for determining destination directory.")
+		err = fmt.Errorf("unable to load bucket name for determining destination directory: %w", err)
 	}
 	totalFiles := len(filesToDownload)
 	photoFileNameRegex, _ := regexp.Compile("([0-9][0-9][0-9][0-9])-[0-9][0-9]/(.*)")
@@ -195,12 +203,12 @@ func downloadFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle, 
 			}
 			if errors.Is(err2, errors.NotFound) {
 				//no sense retrying if we can't find the file
-				err = errors.Annotatef(err2, "Could not find %s to download it", remoteFile)
+				err = fmt.Errorf("could not find %s to download it: %w", remoteFile, err2)
 				return
 			}
 			retryCount++
 			if retryCount > config.MaxDownloadRetries {
-				err = errors.Annotatef(err2, "Could not download %s. Retried max number of times.", remoteFile)
+				err = fmt.Errorf("could not download %s after retrying max number of times: %w", remoteFile, err2)
 				return
 			}
 			fmt.Println(fmt.Sprintf("Failed, retry %d of %d.", retryCount, config.MaxDownloadRetries))
@@ -213,7 +221,7 @@ func validateServerBackups(ctx context.Context, bucket *storage.BucketHandle, ru
 
 	oldestObjAttrs, err := getOldestObjectFromBucket(ctx, bucket)
 	if err != nil || oldestObjAttrs == nil {
-		return errors.Annotate(err, "Unable to get oldest object in bucket")
+		return fmt.Errorf("unable to get oldest object in bucket %w", err)
 	}
 	oldestFileAge := time.Since(oldestObjAttrs.Created)
 	oldestFileAgeInDays := int(oldestFileAge / (time.Hour * 24)) //this may not be 100% accurate due to daylight savings time and whatnot, but close enough
@@ -224,7 +232,7 @@ func validateServerBackups(ctx context.Context, bucket *storage.BucketHandle, ru
 
 	newestObjAttrs, err := getNewestObjectFromBucket(ctx, bucket)
 	if err != nil || newestObjAttrs == nil {
-		return errors.Annotate(err, "Unable to get newest object in bucket")
+		return fmt.Errorf("unable to get newest object in bucket: %w", err)
 	}
 	newestFileAge := time.Since(newestObjAttrs.Created)
 	newestFileAgeInDays := int(newestFileAge / (time.Hour * 24)) //this may not be 100% accurate due to daylight savings time and whatnot, but close enough
@@ -240,13 +248,13 @@ func validateServerBackups(ctx context.Context, bucket *storage.BucketHandle, ru
 func getMediaFilesToDownload(ctx context.Context, bucket *storage.BucketHandle, rules FileDownloadRules) (mediaFiles []string, err error) {
 	shows, err := getBucketTopLevelDirs(ctx, bucket) //each top level directory in a media bucket represents a show
 	if err != nil {
-		err = errors.Annotate(err, "Unable to determine shows in media bucket")
+		err = fmt.Errorf("unable to determine shows in media bucket: %w", err)
 		return
 	}
 	for _, show := range shows {
 		partialFiles, err2 := getRandomFilesFromBucket(ctx, bucket, rules.EpisodesFromEachShow, show)
 		if err2 != nil {
-			err = errors.Annotatef(err2, "Unable to get %d random files from show %s in media bucket", rules.EpisodesFromEachShow, show)
+			err = fmt.Errorf("unable to get %d random files from show %s in media bucket: %w", rules.EpisodesFromEachShow, show, err2)
 			return
 		}
 		mediaFiles = append(mediaFiles, partialFiles...)
@@ -261,7 +269,7 @@ func getPhotosToDownload(ctx context.Context, bucket *storage.BucketHandle, rule
 	for year := 2010; year <= currYear; year++ {
 		partialPhotos, err2 := getRandomFilesFromBucket(ctx, bucket, rules.PhotosFromEachYear, fmt.Sprintf("%d-", year))
 		if err2 != nil {
-			err = errors.Annotatef(err2, "Unable to get %d random files from year %d in photo bucket", rules.EpisodesFromEachShow, year)
+			err = fmt.Errorf("unable to get %d random files from year %d in photo bucket: %w", rules.EpisodesFromEachShow, year, err2)
 			return
 		}
 		photos = append(photos, partialPhotos...)
@@ -270,8 +278,8 @@ func getPhotosToDownload(ctx context.Context, bucket *storage.BucketHandle, rule
 	//for this month, get rules.PhotosFromThisMonth photos from this month, randomly selected
 	partialPhotos, err := getRandomFilesFromBucket(ctx, bucket, rules.PhotosFromThisMonth, fmt.Sprintf("%d-%02d", currYear, time.Now().Month()))
 	if err != nil {
-		err = errors.Annotatef(err, "Unable to get %d random files from this month %s in photo bucket",
-			rules.PhotosFromThisMonth, fmt.Sprintf("%d-%02d", currYear, time.Now().Month()))
+		err = fmt.Errorf("unable to get %d random files from this month %s in photo bucket: %w",
+			rules.PhotosFromThisMonth, fmt.Sprintf("%d-%02d", currYear, time.Now().Month()), err)
 		return
 	}
 	photos = append(photos, partialPhotos...)
@@ -292,7 +300,7 @@ func getServerBackupsToDownload(ctx context.Context, bucket *storage.BucketHandl
 			break
 		}
 		if err2 != nil {
-			err = errors.Annotate(err2, "Unable to get random sample from bucket")
+			err = fmt.Errorf("unable to get random sample from bucket: %w", err2)
 			return
 		}
 		//if they are part of the nth most recent, save them
@@ -325,7 +333,7 @@ func getServerBackupsToDownload(ctx context.Context, bucket *storage.BucketHandl
 func getBucketName(ctx context.Context, bucket *storage.BucketHandle) (name string, err error) {
 	bucketAttrs, err := bucket.Attrs(ctx)
 	if err != nil {
-		err = errors.Annotate(err, "Unable to determine bucket name.")
+		err = fmt.Errorf("unable to determine bucket name: %w", err)
 		return
 	}
 	name = bucketAttrs.Name
@@ -342,7 +350,7 @@ func getBucketTopLevelDirs(ctx context.Context, bucket *storage.BucketHandle) (d
 			break
 		}
 		if err2 != nil {
-			err = errors.Annotate(err2, "Unable to get top level dirs of bucket")
+			err = fmt.Errorf("unable to get top level dirs of bucket: %w", err)
 			return
 		}
 		dirs = append(dirs, objAttrs.Prefix)
@@ -368,7 +376,7 @@ func getNewestObjectFromBucket(ctx context.Context, bucket *storage.BucketHandle
 			break
 		}
 		if err2 != nil {
-			err = errors.Annotate(err2, "Unable to get newest object from bucket")
+			err = fmt.Errorf("unable to get newest object from bucket: %w", err2)
 			return
 		}
 		if newestObjectAttrs == nil || objAttrs.Created.After(newestObjectAttrs.Created) {
@@ -387,7 +395,7 @@ func getOldestObjectFromBucket(ctx context.Context, bucket *storage.BucketHandle
 			break
 		}
 		if err2 != nil {
-			err = errors.Annotate(err2, "Unable to get oldest object from bucket")
+			err = fmt.Errorf("unable to get oldest object from bucket %w", err2)
 			return
 		}
 		if oldestObjectAttrs == nil || objAttrs.Created.Before(oldestObjectAttrs.Created) {
@@ -429,7 +437,7 @@ func getRandomFilesFromBucket(ctx context.Context, bucket *storage.BucketHandle,
 			break
 		}
 		if err2 != nil {
-			err = errors.Annotate(err2, "Unable to get random sample from bucket")
+			err = fmt.Errorf("unable to get random sample from bucket: %w", err2)
 			return
 		}
 		if bannedNameRegex.MatchString(objAttrs.Name) {
@@ -504,18 +512,32 @@ func downloadFile(ctx context.Context, bucket *storage.BucketHandle, remoteFileP
 	}
 
 	rc, err := obj.NewReader(ctx)
+	defer func() {
+		closeErr := rc.Close()
+		if closeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to close remote reader at %s: %w", remoteFilePath, closeErr))
+		}
+	}()
 	if err != nil {
 		return errors.NotFoundf("Unable to download file at %s", remoteFilePath)
 	}
-	defer rc.Close()
 
 	//prep file
-	os.MkdirAll(filepath.Dir(localFilePath), os.ModePerm)
-	localFile, err := os.Create(localFilePath)
+	err = os.MkdirAll(filepath.Dir(localFilePath), os.ModePerm)
 	if err != nil {
-		return errors.Annotatef(err, "Unable to open file %s for saving data from bucket.", localFilePath)
+		return fmt.Errorf("unable to make directory %s: %w", localFilePath, err)
 	}
-	defer localFile.Close()
+
+	localFile, err := os.Create(localFilePath)
+	defer func() {
+		closeErr := localFile.Close()
+		if closeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to close file at %s: %w", localFilePath, closeErr))
+		}
+	}()
+	if err != nil {
+		return fmt.Errorf("unable to open file %s for saving data from bucket: %w", localFilePath, err)
+	}
 
 	//prep progress bar
 	bar := pb.New(int(attrs.Size)).SetUnits(pb.U_BYTES)
@@ -524,10 +546,9 @@ func downloadFile(ctx context.Context, bucket *storage.BucketHandle, remoteFileP
 	//download it
 
 	_, err = io.Copy(localFile, reader)
-	localFile.Close()
 	bar.Finish()
 	if err != nil {
-		return errors.Annotatef(err, "Error saving data to file %s", localFilePath)
+		return fmt.Errorf("error saving data to file %s: %w", localFilePath, err)
 	}
 
 	return verifyDownloadedFile(attrs, localFilePath)
@@ -559,20 +580,26 @@ func verifyDownloadedFile(objAttrs *storage.ObjectAttrs, filePath string) (err e
 
 // getCrc32CFromFile calculates theCRC32 checksum of the file's contents using the Castagnoli93 polynomial
 func getCrc32CFromFile(filePath string) (crc uint32, err error) {
-	//from http://mrwaggel.be/post/generate-crc32-hash-of-a-file-in-golang-turorial/
+	//originally from http://mrwaggel.be/post/generate-crc32-hash-of-a-file-in-golang-turorial/
+	//modified to new golang error handling since then
 	file, err := os.Open(filePath)
+	defer func() {
+		closeErr := file.Close()
+		if closeErr != nil {
+			err = stderrors.Join(err, fmt.Errorf("unable to close file at %s: %w", filePath, closeErr))
+		}
+	}()
 	if err != nil {
-		err = errors.Annotatef(err, "Unable to open file %s to calculate CRC32C", filePath)
+		err = fmt.Errorf("unable to open file %s to calculate CRC32C: %w", filePath, err)
 		return
 	}
-	defer file.Close()
 
 	tablePolynomial := crc32.MakeTable(crc32.Castagnoli)
 	hash := crc32.New(tablePolynomial)
 
 	_, err = io.Copy(hash, file)
 	if err != nil {
-		err = errors.Annotatef(err, "Unable to hash file %s to calculate CRC32C", filePath)
+		err = fmt.Errorf("unable to hash file %s to calculate CRC32C: %w", filePath, err)
 		return
 	}
 
