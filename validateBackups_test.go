@@ -27,11 +27,18 @@ func getTestClient(ctx context.Context, t *testing.T) (client *storage.Client) {
 		return
 	}
 	googleAuthFileName := "test-backup-validator-auth.json"
-	workingDir, err := os.Getwd()
-	if err != nil {
-		t.Error("Could not determine current directory to load test auth file")
+	envVarAuthFileName, envVarAuth := os.LookupEnv("GOOGLE_GHA_CREDS_PATH")
+	var googleAuthFileLocation string
+	if envVarAuth {
+		googleAuthFileLocation = envVarAuthFileName
+	} else {
+		workingDir, err := os.Getwd()
+		if err != nil {
+			t.Error("Could not determine current directory to load test auth file")
+		}
+		googleAuthFileLocation = filepath.Join(workingDir, googleAuthFileName)
 	}
-	googleAuthFileLocation := filepath.Join(workingDir, googleAuthFileName)
+
 	client, err = storage.NewClient(ctx, option.WithCredentialsFile(googleAuthFileLocation))
 	if err != nil {
 
