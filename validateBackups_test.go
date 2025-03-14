@@ -19,31 +19,25 @@ import (
 )
 
 // ***** Helpers *****
-func getTestClient(ctx context.Context, t *testing.T) (client *storage.Client) {
-	var err error
-	// try ADC first
+func getTestClient(ctx context.Context, t *testing.T) (client *storage.Client, err error) {
+	// try app default credentials first
 	client, err = storage.NewClient(ctx)
 	if err == nil {
+		t.Log("created client with ADC")
 		return
 	}
+	// app default credentials didn't work, use the auth file
 	googleAuthFileName := "test-backup-validator-auth.json"
-	envVarAuthFileName, envVarAuth := os.LookupEnv("GOOGLE_GHA_CREDS_PATH")
-	var googleAuthFileLocation string
-	if envVarAuth {
-		googleAuthFileLocation = envVarAuthFileName
-	} else {
-		workingDir, err := os.Getwd()
-		if err != nil {
-			err = fmt.Errorf("unable to determine current directory to load test auth file: %w", err)
-			t.Fatalf("%v", err)
-		}
-		googleAuthFileLocation = filepath.Join(workingDir, googleAuthFileName)
+	workingDir, err2 := os.Getwd()
+	if err2 != nil {
+		err = fmt.Errorf("unable to determine current directory to load test auth file: %w", err2)
+		return
 	}
+	googleAuthFileLocation := filepath.Join(workingDir, googleAuthFileName)
 
 	client, err = storage.NewClient(ctx, option.WithCredentialsFile(googleAuthFileLocation))
 	if err != nil {
 		err = fmt.Errorf("unable to connect to test storage instance: %w", err)
-		t.Fatalf("%v", err)
 	}
 	return
 }
@@ -264,7 +258,11 @@ func TestLoadConfigurationFromFile(t *testing.T) {
 func TestValidateBucketsInConfig(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 
 	config := Config{
 		ServerBackupRules: ServerFileValidationRules{
@@ -277,7 +275,7 @@ func TestValidateBucketsInConfig(t *testing.T) {
 			{Name: "test-matt-server-backups-fresh", Type: "server-backup"},
 		}}
 	backupBucket := testClient.Bucket("test-matt-server-backups-fresh")
-	err := uploadFreshServerBackupFile(ctx, backupBucket)
+	err = uploadFreshServerBackupFile(ctx, backupBucket)
 	if err != nil {
 		err = fmt.Errorf("unable to prep test case for validating server backup bucket: %w", err)
 		t.Fatalf("%v", err)
@@ -304,7 +302,11 @@ func TestValidateBucketsInConfig(t *testing.T) {
 func TestGetObjectsToDownloadFromBucketsInConfig(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 
 	config := Config{
 		FilesToDownload: FileDownloadRules{
@@ -436,7 +438,11 @@ func TestLoadInProgressFile(t *testing.T) {
 func TestDownloadFilesFromBucketAndFiles(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 	tempDir, err := os.MkdirTemp("", "TestDownloadFilesFromBucketAndFiles")
 	if err != nil {
 		t.Error("Could not create temporary directory")
@@ -471,7 +477,11 @@ func TestDownloadFilesFromBucketAndFiles(t *testing.T) {
 func TestValidateBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 
 	config := Config{
 		ServerBackupRules: ServerFileValidationRules{
@@ -484,7 +494,7 @@ func TestValidateBucket(t *testing.T) {
 			{Name: "test-matt-server-backups-fresh", Type: "server-backup"},
 		}}
 	backupBucket := testClient.Bucket("test-matt-server-backups-fresh")
-	err := uploadFreshServerBackupFile(ctx, backupBucket)
+	err = uploadFreshServerBackupFile(ctx, backupBucket)
 	if err != nil {
 		t.Error("Could not prep test case for validating server backup bucket.")
 	}
@@ -516,7 +526,11 @@ func TestValidateBucket(t *testing.T) {
 func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 
 	config := Config{
 		FilesToDownload: FileDownloadRules{
@@ -569,7 +583,11 @@ func TestGetObjectsToDownloadFromBucket(t *testing.T) {
 func TestDownloadFilesFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 	tempDir, err := os.MkdirTemp("", "TestDownloadFilesFromBucket")
 	if err != nil {
 		t.Error("Could not create temporary directory")
@@ -615,13 +633,17 @@ func TestDownloadFilesFromBucket(t *testing.T) {
 func TestValidateServerBackups(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 	rules := ServerFileValidationRules{
 		OldestFileMaxAgeInDays: 10,
 		NewestFileMaxAgeInDays: 5,
 	}
 	happyPathBucket := testClient.Bucket("test-matt-server-backups-fresh")
-	err := uploadFreshServerBackupFile(ctx, happyPathBucket)
+	err = uploadFreshServerBackupFile(ctx, happyPathBucket)
 	if err != nil {
 		t.Error("Could not prep test case for validating server backups.")
 	}
@@ -652,7 +674,11 @@ func TestValidateServerBackups(t *testing.T) {
 func TestGetMediaFilesToDownload(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 	rules := FileDownloadRules{
 		ServerBackups:        4,
 		EpisodesFromEachShow: 3,
@@ -678,7 +704,11 @@ func TestGetMediaFilesToDownload(t *testing.T) {
 func TestGetPhotosToDownload(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 	rules := FileDownloadRules{
 		ServerBackups:        4,
 		EpisodesFromEachShow: 3,
@@ -687,7 +717,7 @@ func TestGetPhotosToDownload(t *testing.T) {
 	}
 
 	happyPathBucket := testClient.Bucket("test-matt-photos")
-	err := uploadThisMonthPhotos(ctx, happyPathBucket)
+	err = uploadThisMonthPhotos(ctx, happyPathBucket)
 	if err != nil {
 		t.Error("Could not prep test case for getting photos to download.")
 	}
@@ -713,7 +743,11 @@ func TestGetPhotosToDownload(t *testing.T) {
 func TestGetServerBackupsToDownload(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 	rules := FileDownloadRules{
 		ServerBackups:        4,
 		EpisodesFromEachShow: 3,
@@ -747,7 +781,11 @@ func TestGetBucketTopLevelDirs(t *testing.T) {
 
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 
 	for _, tc := range testBucketTopLevelDirsCases {
 		expected := tc.expected
@@ -798,7 +836,11 @@ func TestGetBucketValidationTypeFromNameAndConfig(t *testing.T) {
 func TestGetNewestObjectFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 	bucket := testClient.Bucket("test-matt-server-backups")
 	actual, err := getNewestObjectFromBucket(ctx, bucket)
 	is.NoError(err, "Should not error when getting latest object from bucket")
@@ -817,7 +859,11 @@ func TestGetNewestObjectFromBucket(t *testing.T) {
 func TestGetOldestObjectFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 	bucket := testClient.Bucket("test-matt-server-backups")
 	actual, err := getOldestObjectFromBucket(ctx, bucket)
 	is.NoError(err, "Should not error when getting latest object from bucket")
@@ -836,7 +882,11 @@ func TestGetOldestObjectFromBucket(t *testing.T) {
 func TestGetRandomFilesFromBucket(t *testing.T) {
 	is := assert.New(t)
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 
 	emptyBucket := testClient.Bucket("test-matt-empty")
 	actualEmpty, err := getRandomFilesFromBucket(ctx, emptyBucket, 0, "")
@@ -883,7 +933,11 @@ func TestDownloadFile(t *testing.T) {
 		t.Error("Could not determine current directory")
 	}
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 	tempDir, err := os.MkdirTemp("", "TestDownloadFile")
 	if err != nil {
 		t.Error("Could not create temporary directory")
@@ -929,7 +983,11 @@ func TestVerifyDownloadedFile(t *testing.T) {
 		t.Error("Could not determine current directory")
 	}
 	ctx := context.Background()
-	testClient := getTestClient(ctx, t)
+	testClient, err := getTestClient(ctx, t)
+	if err != nil {
+		err = fmt.Errorf("unable to get test client: %w", err)
+		t.Fatalf("%v", err)
+	}
 
 	sameContentsTestFile := filepath.Join(workingDir, "testdata", "Red_1x1.gif")
 	diffSizeTestFile := filepath.Join(workingDir, "testdata", "newest.txt")
