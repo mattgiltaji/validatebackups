@@ -1,7 +1,6 @@
 # validatebackups
 Validates some personal google cloud backups
 
-[![Build Status](https://travis-ci.org/mattgiltaji/validatebackups.svg?branch=master)](https://travis-ci.org/mattgiltaji/validatebackups)
 [![Build status](https://ci.appveyor.com/api/projects/status/sliy4g7kdjr2cxis/branch/master?svg=true)](https://ci.appveyor.com/project/mattgiltaji/validatebackups/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/mattgiltaji/validatebackups/badge.svg?branch=master)](https://coveralls.io/github/mattgiltaji/validatebackups?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mattgiltaji/validatebackups)](https://goreportcard.com/report/github.com/mattgiltaji/validatebackups)

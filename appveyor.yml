@@ -4,14 +4,14 @@ clone_folder: c:\gopath\src\github.com\mattgiltaji\validatebackups
 environment:
   GOPATH: c:\gopath
   secret:
-    secure: 6J2Kd9IevRWOqfvo4DR7pz5kE3trvog/2cvdRs5nQfo=
+    secure: ZR7JKuioQ54LgmkkSi2fIPLZmwgchE6mynve2CSI2Xw=
   salt:
-    secure: bwRXIHN3aEZrXP6CFWSUBzJWojnrQ2oYs1gGHfpjPWp9fraIkzBXWjHD4sFO8vhHh43m2cP2KBRN8K4EODKwbQ==
+    secure: xnwOXdx6jc3yaHZU+29Ti56jvXZ+VTCVDJ2figaUSSX9ru9yZPdXeP1l0gSekcrxat9oSEFyPZscLbUxC41ncQ==
 install:
 - ps: >-
     iex ((New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/appveyor/secure-file/master/install.ps1'))
 
-    appveyor-tools\secure-file -decrypt  "$Env:APPVEYOR_BUILD_FOLDER\test-backup-validator-auth.json.appenc" -secret $Env:secret -salt $Env:salt -out "$Env:APPVEYOR_BUILD_FOLDER\test-backup-validator-auth.json"
+    appveyor-tools\secure-file -decrypt  "$Env:APPVEYOR_BUILD_FOLDER\test-backup-validator-auth.json.enc" -secret $Env:secret -salt $Env:salt -out "$Env:APPVEYOR_BUILD_FOLDER\test-backup-validator-auth.json"
 
     echo "$Env:PATH"
 
