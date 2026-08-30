@@ -404,7 +404,7 @@ func TestSaveInProgressFile(t *testing.T) {
 	err = saveInProgressFile(tempFileName, data)
 	equal, _ := cmp.CompareFile(expectedFileName, tempFileName)
 	is.NoError(err, "Should not error when saving good data to good file path.")
-	is.True(equal, "Saved file contents should match expected.")
+	is.True(equal, "Saved file contents should match expected. check tempdir %s", tempDir)
 }
 
 func TestLoadInProgressFile(t *testing.T) {
