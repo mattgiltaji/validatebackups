@@ -14,7 +14,7 @@ import (
 // separated out to exclude from coverage calculations as it's not testable
 func main() {
 	configPath := flag.String("config",
-		`D:\Matt\go\src\github.com\mattgiltaji\validatebackups\config.json`,
+		`C:\Users\matt\go\src\github.com\mattgiltaji\validatebackups\config.json`,
 		"path to config file")
 	flag.Parse()
 
